@@ -15,7 +15,12 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 DATA_DIR = '/app/data'
 LOG_FILE = os.path.join(DATA_DIR, 'sync.log')
-SCOPES = ['https://www.googleapis.com/auth/calendar', 'openid', 'email', 'profile']
+SCOPES = [
+    'https://www.googleapis.com/auth/calendar',
+    'openid',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile'
+]
 
 # ENV-Variablen
 APP_BASE_URL = os.getenv('APP_BASE_URL')

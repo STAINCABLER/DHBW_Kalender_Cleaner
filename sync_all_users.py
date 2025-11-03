@@ -12,7 +12,12 @@ from googleapiclient.errors import HttpError
 from sync_logic import CalendarSyncer
 
 DATA_DIR = '/app/data'
-SCOPES = ['https://www.googleapis.com/auth/calendar']
+SCOPES = [
+    'https://www.googleapis.com/auth/calendar',
+    'openid',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile'
+]
 
 # ENV-Variablen müssen gesetzt sein
 SECRET_KEY = os.getenv('SECRET_KEY')
