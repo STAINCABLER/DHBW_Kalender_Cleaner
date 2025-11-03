@@ -123,6 +123,14 @@ def get_app():
     def load_user(user_id):
         return User(user_id)
 
+    @app.route('/health')
+    def health_check():
+        """
+        Einfacher, leichtgewichtiger Health-Check-Endpunkt.
+        Antwortet nur mit 200 OK, um zu signalisieren, dass der Webserver läuft.
+        """
+        return "OK", 200
+
     # --- OAuth Flow Routen ---
 
     def get_oauth_flow():
