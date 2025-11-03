@@ -1,5 +1,5 @@
-# Führt den Sync-Job jede Stunde zur Minute 0 aus
-# (z.B. 1:00, 2:00, 3:00) in der Zeitzone des Containers (TZ Env Var)
-0 * * * * /usr/local/bin/python /app/sync_all_users.py >> /app/data/sync.log 2>&1
+# NEU: Lädt zuerst die Umgebungsvariablen
+# (Der '.' ist ein Kürzel für 'source')
+0 * * * * . /app/cron_env && /usr/local/bin/python /app/sync_all_users.py >> /app/data/sync.log 2>&1
 
 # WICHTIG: Stellen Sie sicher, dass diese Datei eine Leerzeile am Ende hat.
