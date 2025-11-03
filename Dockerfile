@@ -1,5 +1,5 @@
 # Verwende ein schlankes Python-Basisimage
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Installiere Systemabhängigkeiten: cron
 RUN apt-get update && apt-get install -y cron && rm -rf /var/lib/apt/lists/*
