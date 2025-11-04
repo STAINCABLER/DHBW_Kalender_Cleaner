@@ -132,8 +132,8 @@
                 const data = await response.json();
                 // Baue HTML, um Zeilenumbrüche zu erzwingen
                 logBox.innerHTML = data.logs.map(line => `<span>${line}</span>`).join('<br>');
-                // Scrolle nur nach unten, wenn der User nicht gerade hochgescrollt hat
-                if (logBox.scrollTop + logVollständige + logBox.clientHeight >= logBox.scrollHeight - 50) {
+                
+                if (logBox.scrollTop + logBox.clientHeight >= logBox.scrollHeight - 50) {
                      logBox.scrollTop = logBox.scrollHeight;
                 }
             } catch (e) {
