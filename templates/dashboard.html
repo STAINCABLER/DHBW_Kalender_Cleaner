@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Kalender Sync</title>
+    <title>DHBW Calendar Cleaner-Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" type="image/x-icon" href="{{ url_for('favicon') }}">
 </head>
@@ -11,7 +11,7 @@
 
     <div class="max-w-7xl mx-auto p-4 md:p-8">
         <header class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-gray-200">
-            <h1 class="text-3xl font-bold">Sync-Dashboard</h1>
+            <h1 class="text-3xl font-bold">DHBW Calendar Cleaner-Dashboard</h1>
             <div class="flex items-center gap-4 text-sm">
                 <span>Angemeldet als: <strong>{{ current_user.data.email }}</strong></span>
                 <a href="{{ url_for('logout') }}" 
@@ -72,7 +72,7 @@
                         </div>
 
                         <div>
-                            <label for="regex_patterns" class="text-sm font-medium text-gray-700">Filter-Regeln (eine pro Zeile)</label>
+                            <label for="regex_patterns" class="text-sm font-medium text-gray-700">RegEx Filter-Regeln (eine pro Zeile)</label>
                             <textarea id="regex_patterns" name="regex_patterns" rows="6"
                                       class="mt-1 block w-full rounded-lg border-gray-300 font-mono text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                       placeholder=".*Sport.*&#10;.*Tutorium.*">{{ config.regex_patterns | join('\n') }}</textarea>
