@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DHBW Calendar Cleaner-Dashboard</title>
+    <title>DHBW Calendar Cleaner - Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
@@ -11,7 +11,7 @@
 
     <div class="max-w-7xl mx-auto p-4 md:p-8">
         <header class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-gray-200">
-            <h1 class="text-3xl font-bold">DHBW Calendar Cleaner-Dashboard</h1>
+            <h1 class="text-3xl font-bold">DHBW Calendar Cleaner</h1>
             <div class="flex items-center gap-4 text-sm">
                 <span>Angemeldet als: <strong>{{ current_user.data.email }}</strong></span>
                 <a href="{{ url_for('logout') }}" 

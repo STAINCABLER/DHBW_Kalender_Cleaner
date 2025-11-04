@@ -1,10 +1,15 @@
-# Docker Kalender-Sync mit Web-UI (Multi-User)
+# DHBW Calendar Cleaner
 
-Architektur:
+Docker-Service zur automatischen Bereinigung von DHBW/ICS-Kalendern. Filtert unerwünschte Termine per RegEx und synchronisiert stündlich mit einem Google-Kalender. Multi-User-fähig via Google OAuth.
+
+---
+
+## Architektur
+
 - **Authentifizierung:** "Web Application" OAuth 2.0 Flow. Nutzer loggen sich auf Ihrer Domain ein.
-- **Web-UI (Port 8000):** Für Login, Setup & Konfiguration (schreibt `/app/data/<user-id>.json`).
+- **Web-UI (Port 8000):** Für Login, Info-Seite, Disclaimer, Dashboard & Konfiguration (schreibt `/app/data/<user-id>.json`).
 - **Backend (Cron):** Stündlicher Sync-Job im Container, der **alle** konfigurierten User-Dateien verarbeitet.
-- **Persistence:** Das `/app/data` Verzeichnis (als Volume gemountet) enthält die verschlüsselten Konfigurationsdateien.
+- **Persistence:** Das `/app/data` Verzeichnis (als Volume gemountet) enthält die verschlüsselten Konfigurationsdateien und individuellen Log-Dateien.
 
 ## Setup-Anleitung
 
@@ -17,7 +22,7 @@ Architektur:
 5.  Wählen Sie als Anwendungstyp **"Webanwendung"**.
 6.  **Autorisierte Weiterleitungs-URIs:**
     Fügen Sie die *exakte* Callback-URL Ihrer Anwendung hinzu:
-    `https://dhbw-kalender-cleaner.ptb.ltm-labs.de/authorize`
+    `https://dhbw-calendar-cleaner.ptb.ltm-labs.de/authorize`
 7.  Klicken Sie auf "Erstellen". Sie erhalten eine **Client-ID** und einen **Client-Geheimschlüssel**.
 8.  Gehen Sie zum "OAuth-Zustimmungsbildschirm".
 9.  Setzen Sie den Status auf **"In Produktion"**.
@@ -25,43 +30,38 @@ Architektur:
 
 ### Schritt 2: Docker-Volume vorbereiten
 
-1.  Erstellen Sie ein Verzeichnis, das als Docker-Volume dienen wird:
+1.  Erstellen Sie ein Verzeichnis, das als Docker-Volume dienen wird (falls Sie kein benanntes Volume wie in der `docker-compose.yml` verwenden):
     ```bash
     mkdir ./calendar-data
     ```
 
-### Schritt 3: Docker bauen und starten
+### Schritt 3: Docker Container starten
 
-1.  Stellen Sie sicher, dass alle Projekt-Dateien im Hauptverzeichnis liegen.
-2.  Bauen Sie das Image (oder lassen Sie es von der GitHub Action bauen).
-    ```bash
-    docker build -t calendar-sync-web .
-    ```
-3.  **Generieren Sie einen starken Secret Key:**
+1.  **Generieren Sie einen starken Secret Key:**
     z.B. mit `openssl rand -base64 32`
-4.  **Starten Sie den Container:**
-    Sie müssen dem Container jetzt alle Geheimnisse als Umgebungsvariablen (ENV) übergeben.
+2.  **Starten Sie den Container:**
+    Dieser Befehl verwendet das von Ihnen bereitgestellte Image von GHCR. Ersetzen Sie die `...` durch Ihre echten Google-Secrets und Ihren Secret-Key.
 
     ```bash
-    docker run -d --name calendar-sync \
+    docker run -d --name calendar-cleaner \
       -p 8000:8000 \
       -v $(pwd)/calendar-data:/app/data \
       -e TZ=Europe/Berlin \
-      -e APP_BASE_URL="[https://dhbw-kalender-cleaner.ptb.ltm-labs.de](https://dhbw-kalender-cleaner.ptb.ltm-labs.de)" \
+      -e APP_BASE_URL="[https://dhbw-calendar-cleaner.ptb.ltm-labs.de](https://dhbw-calendar-cleaner.ptb.ltm-labs.de)" \
       -e GOOGLE_CLIENT_ID="IHRE_CLIENT_ID_VON_GOOGLE" \
       -e GOOGLE_CLIENT_SECRET="IHR_CLIENT_SECRET_VON_GOOGLE" \
       -e SECRET_KEY="IHR_GENERIERTER_SECRET_KEY" \
-      calendar-sync-web
+      ghcr.io/staincabler/dhbw_kalender_cleaner:main
     ```
-    (Oder verwenden Sie Ihre `docker-compose.yml`)
+    *Alternativ: Nutzen Sie Ihre `docker-compose.yml` mit einer `.env`-Datei, um die Secrets zu verwalten.*
 
 ### Schritt 4: Reverse Proxy
 
-Stellen Sie sicher, dass Ihr Reverse Proxy (z.B. Traefik) Anfragen für `https...` an `http://<container-ip>:8000` weiterleitet.
+Stellen Sie sicher, dass Ihr Reverse Proxy (z.B. Traefik) Anfragen für `https://dhbw-calendar-cleaner.ptb.ltm-labs.de` an `http://calendar-cleaner:8000` weiterleitet.
 
 ### Schritt 5: Nutzung
 
-1.  Jeder Nutzer besucht Ihre Domain.
+1.  Jeder Nutzer besucht `https://dhbw-calendar-cleaner.ptb.ltm-labs.de`.
 2.  Klickt auf "Mit Google anmelden".
-3.  Führt das Setup (Quelle, Ziel, Regex) im Dashboard durch.
+3.  Folgt den Anweisungen auf der Info-Seite (Disclaimer) und richtet das Dashboard ein.
 4.  Das System synchronisiert diesen Nutzer ab sofort stündlich.
