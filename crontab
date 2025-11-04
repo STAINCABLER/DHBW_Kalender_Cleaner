@@ -1,6 +1,6 @@
 # Führt den Sync-Job jede Stunde zur Minute 0 aus
 # Lädt zuerst die Umgebungsvariablen
-# Leitet die Ausgabe in die Log-Datei UND an stdout (für docker logs) weiter
-0 * * * * . /app/cron_env && /usr/local/bin/python /app/sync_all_users.py 2>&1 | tee -a /app/data/sync.log
+# Leitet die System-Logs in eine separate Datei. User-Logs werden intern geschrieben.
+0 * * * * . /app/cron_env && /usr/local/bin/python /app/sync_all_users.py >> /app/data/system.log 2>&1
 
 # WICHTIG: Stellen Sie sicher, dass diese Datei eine Leerzeile am Ende hat.

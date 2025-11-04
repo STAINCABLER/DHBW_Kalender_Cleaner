@@ -32,12 +32,17 @@
             
             <h2>3. Pflichten des Nutzers</h2>
             <p>
-                Der Nutzer ist dafür verantwortlich, korrekte Quell- und Ziel-Kalender-IDs anzugeben. Der Nutzer ist dafür verantwortlich, die Auswirkungen seiner RegEx-Filter zu verstehen.
+                Der Nutzer ist dafür verantwortlich, korrekte Quell- und Ziel-Kalender-IDs anzugeben. Der Nutzer ist dafür verantwortlich, die Auswirkungen seiner RegEx-Filter zu verstehen. Durch die Nutzung des Dienstes bestätigt der Nutzer, die Warnungen (insbesondere die Löschung von Daten im Zielkalender) gelesen und verstanden zu haben.
             </p>
 
             <h2>4. Verfügbarkeit</h2>
             <p>
                 Der Dienst wird auf "Best-Effort"-Basis bereitgestellt. Es gibt keine Garantie für eine ununterbrochene Verfügbarkeit oder fehlerfreie Synchronisierung.
+            </p>
+
+            <h2>5. Kündigung / Löschung des Kontos</h2>
+            <p>
+                Der Nutzer kann sein Konto und alle damit verbundenen Daten (Konfiguration, Authentifizierungs-Token, Log-Dateien) jederzeit über die Funktion "Konto dauerhaft löschen" im Dashboard selbst entfernen.
             </p>
 
         </div>
@@ -49,6 +54,18 @@
             </a>
         </div>
     </div>
+    
+    <footer class="text-center text-xs text-gray-500 py-6 space-y-1 w-full max-w-3xl mx-auto">
+         <div class="flex justify-center gap-4 mb-1">
+            <a href="{{ url_for('privacy_policy') }}" class="font-medium text-blue-600 hover:underline">Datenschutz</a>
+            <a href="{{ url_for('terms_of_service') }}" class="font-medium text-blue-600 hover:underline">Nutzungsbedingungen</a>
+        </div>
+        <p>
+            Mehr Projekte findest du bei 
+            <a href="https://thulium-labs.de" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">thulium-labs.de</a>.
+        </p>
+        <p>Made by Tobias Maimone</p>
+    </footer>
 
 </body>
 </html>

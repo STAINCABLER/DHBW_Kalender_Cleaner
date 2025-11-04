@@ -55,6 +55,10 @@
             <p>
                 Wir speichern die von Ihnen im Dashboard eingegebenen Daten (Quell-ID, Ziel-ID, RegEx-Filter), um den Synchronisierungsdienst auszuführen.
             </p>
+            <h3>d) Log-Dateien</h3>
+            <p>
+                Jede Synchronisierung (manuell oder automatisch) wird in einer benutzerspezifischen Log-Datei (`<user_id>.log`) auf dem Server protokolliert. Diese Logs sind nur für den jeweiligen Benutzer im Dashboard sichtbar und werden beim Löschen des Kontos ebenfalls entfernt.
+            </p>
             
             <h2>3. Datensicherheit</h2>
             <p>
@@ -63,7 +67,7 @@
 
             <h2>4. Ihre Rechte</h2>
             <p>
-                [[Abschnitt über Auskunft, Löschung (z.B. durch Löschen des Kontos/der Datei), Berichtigung und Beschwerderecht einfügen.]]
+                Sie haben das Recht auf Auskunft, Berichtigung und Löschung Ihrer Daten. Sie können Ihr Konto und alle zugehörigen Daten (Konfiguration, verschlüsselter Token, Log-Dateien) jederzeit über die Funktion "Konto dauerhaft löschen" im Dashboard selbst entfernen.
             </p>
 
         </div>
@@ -75,6 +79,18 @@
             </a>
         </div>
     </div>
+    
+    <footer class="text-center text-xs text-gray-500 py-6 space-y-1 w-full max-w-3xl mx-auto">
+         <div class="flex justify-center gap-4 mb-1">
+            <a href="{{ url_for('privacy_policy') }}" class="font-medium text-blue-600 hover:underline">Datenschutz</a>
+            <a href="{{ url_for('terms_of_service') }}" class="font-medium text-blue-600 hover:underline">Nutzungsbedingungen</a>
+        </div>
+        <p>
+            Mehr Projekte findest du bei 
+            <a href="https://thulium-labs.de" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">thulium-labs.de</a>.
+        </p>
+        <p>Made by Tobias Maimone</p>
+    </footer>
 
 </body>
 </html>

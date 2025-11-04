@@ -15,8 +15,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 # --- Konfiguration ---
 
 DATA_DIR = '/app/data'
-LOG_FILE = os.path.join(DATA_DIR, 'sync.log')
-# Muss exakt mit sync_all_users.py übereinstimmen
 SCOPES = [
     'https://www.googleapis.com/auth/calendar',
     'openid',
@@ -143,6 +141,11 @@ def get_app():
     def load_user(user_id):
         return User(user_id)
 
+    @app.route('/favicon.ico')
+    def favicon():
+        # Dient als statische Datei aus dem Root-Verzeichnis der App
+        return app.send_static_file('favicon.ico')
+
     @app.route('/health')
     def health_check():
         """Leichtgewichtiger Health-Check-Endpunkt."""
@@ -242,24 +245,17 @@ def get_app():
         flash("Erfolgreich abgemeldet.", "info")
         return redirect(url_for('index'))
 
-    @app.route('/accept', methods=['POST'])
-    @login_required
-    def accept_disclaimer():
-        current_user.set_disclaimer_accepted()
-        flash("Bestätigung erfolgreich. Willkommen beim Dashboard!", "success")
-        return redirect(url_for('index'))
-
     @app.route('/delete-account', methods=['POST'])
     @login_required
     def delete_account():
         """
-        Löscht die Konfigurationsdatei des Benutzers dauerhaft.
+        Löscht die Konfigurationsdatei (.json) und Logdatei (.log) des Benutzers.
         Erfordert eine Bestätigung per E-Mail-Eingabe.
         """
         email_confirmation = request.form.get('email_confirmation', '').lower().strip()
         user_email = current_user.data.get('email', '').lower().strip()
 
-        # Sicherheitsprüfung: E-Mail muss exakt übereinstimmen
+        # Sicherheitsprüfung: E-Mail-Bestätigung
         if not email_confirmation or email_confirmation != user_email:
             flash("Die E-Mail-Bestätigung war falsch. Ihr Konto wurde nicht gelöscht.", 'error')
             return redirect(url_for('index'))
@@ -267,17 +263,23 @@ def get_app():
         try:
             # Wichtige Infos holen, BEVOR der User ausgeloggt wird
             user_data_file = current_user.data_file
+            user_log_file = os.path.join(DATA_DIR, f"{current_user.id}.log") # Pfad zur Logdatei
             user_id_log = current_user.id
             user_email_log = current_user.data.get('email', 'N/A')
 
             # User ausloggen, um die Session zu beenden
             logout_user() 
 
-            # Physische Datei löschen
+            # Physische JSON-Datei löschen
             if os.path.exists(user_data_file):
                 os.remove(user_data_file)
-                # Loggt die Löschung in 'docker logs'
-                app.logger.info(f"BENUTZERKONTO GELÖSCHT: {user_email_log} (ID: {user_id_log})")
+            
+            # Physische LOG-Datei löschen
+            if os.path.exists(user_log_file):
+                os.remove(user_log_file)
+
+            # Loggt die Löschung in 'docker logs'
+            app.logger.info(f"BENUTZERKONTO GELÖSCHT: {user_email_log} (ID: {user_id_log})")
             
             flash("Ihr Konto und alle Ihre Daten wurden erfolgreich und dauerhaft gelöscht.", 'success')
             return redirect(url_for('index')) # Leitet zur Login-Seite
@@ -288,13 +290,21 @@ def get_app():
             # User ist bereits ausgeloggt, also einfach zur Startseite
             return redirect(url_for('index'))
 
+    @app.route('/accept', methods=['POST'])
+    @login_required
+    def accept_disclaimer():
+        current_user.set_disclaimer_accepted()
+        flash("Bestätigung erfolgreich. Willkommen beim Dashboard!", "success")
+        return redirect(url_for('index'))
+
     # --- Anwendungs-Routen ---
 
-    def get_log_lines(n=50): # Auf 50 Zeilen erhöht
-        if not os.path.exists(LOG_FILE):
-            return ["Log-Datei noch nicht erstellt."]
+    def get_log_lines_for_file(filepath, n=50):
+        """Liest die letzten n Zeilen aus einer bestimmten Log-Datei."""
+        if not os.path.exists(filepath):
+            return ["Noch keine Logs für diesen Benutzer erstellt. Starten Sie einen Sync."]
         try:
-            with open(LOG_FILE, 'r') as f:
+            with open(filepath, 'r') as f:
                 lines = f.readlines()
                 return [line.strip() for line in lines[-n:]]
         except Exception as e:
@@ -303,8 +313,9 @@ def get_app():
     @app.route('/logs')
     @login_required
     def get_logs():
-        """API-Endpunkt, der nur die Log-Zeilen als JSON zurückgibt."""
-        logs = get_log_lines()
+        """API-Endpunkt, der nur die Log-Zeilen des aktuellen Users zurückgibt."""
+        user_log_file = os.path.join(DATA_DIR, f"{current_user.id}.log")
+        logs = get_log_lines_for_file(user_log_file, n=50) 
         return jsonify({'logs': logs})
 
     @app.route('/')
@@ -314,13 +325,16 @@ def get_app():
         
         # Prüfen, ob der User die Info-Seite/Disclaimer akzeptiert hat
         if not current_user.data.get('has_accepted_disclaimer'):
-            # User ist angemeldet, hat aber die Warnung noch nicht gesehen
             return render_template('info_page.html')
+        
+        # User-Log für den initialen Ladevorgang holen
+        user_log_file = os.path.join(DATA_DIR, f"{current_user.id}.log")
+        initial_logs = get_log_lines_for_file(user_log_file, n=50)
         
         # User ist angemeldet UND hat die Warnung akzeptiert
         return render_template('dashboard.html', 
                                config=current_user.get_config(),
-                               logs=get_log_lines())
+                               logs=initial_logs)
 
     @app.route('/save', methods=['POST'])
     @login_required
@@ -338,8 +352,8 @@ def get_app():
         current_user.set_config(source_id, target_id, regex_patterns)
         
         try:
-            # Leitet an stdout (docker logs) UND an die Log-Datei (UI) weiter
-            command = f"python /app/sync_all_users.py 2>&1 | tee -a {LOG_FILE}"
+            # Leitet System-Logs an system.log weiter. User-Logs werden intern geschrieben.
+            command = f"python /app/sync_all_users.py >> /app/data/system.log 2>&1"
             subprocess.Popen(
                 ['sh', '-c', command],
                 close_fds=True
@@ -354,8 +368,8 @@ def get_app():
     @login_required
     def sync_now():
         try:
-            # Leitet an stdout (docker logs) UND an die Log-Datei (UI) weiter
-            command = f"python /app/sync_all_users.py 2>&1 | tee -a {LOG_FILE}"
+            # Leitet System-Logs an system.log weiter. User-Logs werden intern geschrieben.
+            command = f"python /app/sync_all_users.py >> /app/data/system.log 2>&1"
             subprocess.Popen(
                 ['sh', '-c', command],
                 close_fds=True

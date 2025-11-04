@@ -13,7 +13,6 @@ from googleapiclient.errors import HttpError
 from sync_logic import CalendarSyncer
 
 DATA_DIR = '/app/data'
-# Muss exakt mit web_server.py übereinstimmen
 SCOPES = [
     'https://www.googleapis.com/auth/calendar',
     'openid',
@@ -28,6 +27,7 @@ GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 
 def log(message):
+    # Diese Funktion loggt an stdout/stderr -> wird von cron/tee an system.log/docker logs geleitet
     print(f"[{datetime.now().isoformat()}] CRON: {message}", flush=True)
 
 def get_decrypter():
@@ -95,7 +95,13 @@ def main():
                 continue
                 
             service = build('calendar', 'v3', credentials=creds)
-            syncer = CalendarSyncer(service, log_callback=log)
+            
+            # NEU: User-Log-Pfad definieren
+            user_log_path = os.path.join(DATA_DIR, f"{user_id}.log")
+            
+            # GEÄNDERT: 'user_log_file' wird an den Syncer übergeben
+            syncer = CalendarSyncer(service, log_callback=log, user_log_file=user_log_path)
+            
             syncer.run_sync(user_data)
             
             log(f"--- Sync für Nutzer {user_id} abgeschlossen ---")

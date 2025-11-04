@@ -6,9 +6,25 @@ from googleapiclient.errors import HttpError
 from ics import Calendar
 
 class CalendarSyncer:
-    def __init__(self, service, log_callback=print):
+    def __init__(self, service, log_callback=print, user_log_file=None):
         self.service = service
-        self.log = log_callback
+        self.system_log = log_callback  # Dies ist print() -> geht an system.log/docker logs
+        self.user_log_file = user_log_file # Pfad zur <user_id>.log
+
+    def log(self, message):
+        # 1. Immer in den System-Log (für den Admin)
+        self.system_log(message) 
+        
+        # 2. Zusätzlich in die User-Log-Datei (für das UI)
+        if self.user_log_file:
+            try:
+                # 'a' für append (anhängen)
+                with open(self.user_log_file, 'a') as f:
+                    # Fügt die Nachricht mit einem Zeilenumbruch an
+                    f.write(message + '\n')
+            except Exception as e:
+                # Wichtig: Der Sync darf nicht fehlschlagen, nur weil das Loggen fehlschlägt.
+                self.system_log(f"!!! KRITISCHER LOG-FEHLER: Konnte nicht in User-Log schreiben {self.user_log_file}: {e}")
 
     def standardize_event(self, event_data, source_type):
         if source_type == 'google':
@@ -123,6 +139,7 @@ class CalendarSyncer:
 
     def run_sync(self, config):
         """Führt den gesamten Sync-Prozess für eine gegebene Konfiguration aus."""
+        self.log(f"Starte Sync für Quelle '{config.get('source_id')}'...")
         SOURCE_CALENDAR_ID = config.get('source_id')
         TARGET_CALENDAR_ID = config.get('target_id')
         REGEX_PATTERNS = config.get('regex_patterns', [])
