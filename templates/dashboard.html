@@ -1,133 +1,115 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" class="bg-slate-50">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Kalender Sync</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" type="image/x-icon" href="{{ url_for('favicon') }}">
-    <style> 
-        body { font-family: sans-serif; max-width: 900px; margin: 2em auto; padding: 1em; line-height: 1.6; } 
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 1em; }
-        .btn { background: #007bff; color: white; padding: 10px 15px; border: none; cursor: pointer; text-decoration: none; border-radius: 4px; } 
-        .btn-secondary { background: #6c757d; }
-        .btn-danger { background: #dc3545; }
-        .form-group { margin-bottom: 1em; } 
-        label { display: block; font-weight: bold; } 
-        input, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; } 
-        textarea { min-height: 150px; font-family: monospace; }
-        
-        /* * GEÄNDERT: Linke Spalte ist jetzt doppelt (2fr) so breit wie die rechte (1fr).
-         */
-        .container { display: grid; grid-template-columns: 2fr 1fr; gap: 2em; margin-top: 1em; }
-        
-        .logs, .config-form { background: #f9f9f9; padding: 1.5em; border-radius: 8px; }
-        pre { white-space: pre-wrap; word-wrap: break-word; } 
-        .log-box { background: #333; color: #f5f5f5; padding: 1em; border-radius: 5px; height: 400px; overflow-y: scroll; font-family: monospace; font-size: 0.9em; } 
-        .alert { padding: 1em; margin-bottom: 1em; border-radius: 5px; } 
-        .alert-error { background: #f8d7da; color: #721c24; } 
-        .alert-success { background: #d4edda; color: #155724; } 
-        .alert-info { background: #d1ecf1; color: #0c5460; }
-        
-        /* CSS für Info-Icons (unverändert) */
-        .info-icon {
-            display: inline-block;
-            position: relative;
-            background: #e0e0e0;
-            color: #424242;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 14px;
-            line-height: 18px;
-            text-align: center;
-            cursor: help;
-            margin-left: 6px;
-            font-weight: bold;
-        }
-        .info-tooltip {
-            position: absolute;
-            bottom: 125%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(33, 33, 33, 0.92);
-            color: #fff;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            line-height: 1.4;
-            width: max-content;
-            max-width: 280px;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.15s ease;
-            z-index: 10;
-        }
-        .info-icon:hover .info-tooltip,
-        .info-icon:focus .info-tooltip {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        /* Responsive-Anpassung für mobile Ansicht */
-        @media (max-width: 800px) { .container { grid-template-columns: 1fr; } }
-    </style>
 </head>
-<body>
-    <header>
-        <h1>Sync-Dashboard</h1>
-        <div>
-            <span style="margin-right: 1em;">Angemeldet als: <strong>{{ current_user.data.email }}</strong></span>
-            <a href="{{ url_for('logout') }}" class="btn btn-secondary">Abmelden</a>
-        </div>
-    </header>
+<body class="text-gray-900">
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category or 'info' }}">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    <div class="container">
-        <div class="config-form">
-            <h3>Konfiguration</h3>
-            <form action="{{ url_for('save_config') }}" method="POST">
-                <div class="form-group">
-                    <label for="source_id">Quell-Kalender ID
-                        <span class="info-icon" tabindex="0">?
-                            <span class="info-tooltip">Geben Sie die Google Kalender-ID (z.B. abc@group.calendar.google.com) oder die öffentliche .ics-URL (z.B. https://...) des Quellkalenders an.</span>
-                        </span>
-                    </label>
-                    <input type="text" id="source_id" name="source_id" required value="{{ config.source_id }}">
-                </div>
-                <div class="form-group">
-                    <label for="target_id">Ziel-Kalender ID
-                        <span class="info-icon" tabindex="0">?
-                            <span class="info-tooltip">Geben Sie die Kalender-ID (aus den Google Kalender-Einstellungen) des Zielkalenders an. Dieser Kalender muss Ihnen gehören und wird bei jedem Sync geleert.</span>
-                        </span>
-                    </label>
-                    <input type="text" id="target_id" name="target_id" required value="{{ config.target_id }}">
-                </div>
-                <div class="form-group">
-                    <label for="regex_patterns">Filter-Regeln (eine pro Zeile)</label>
-                    <textarea id="regex_patterns" name="regex_patterns" placeholder=".*Sport.*&#10;.*Tutorium.*">{{ config.regex_patterns | join('\n') }}</textarea>
-                </div>
-                <button type="submit" class="btn">Speichern & Sync starten</button>
-            </form>
-        </div>
-        <div class="logs">
-            <h3>Live-Log</h3>
-            <p>Der automatische Sync läuft stündlich.</p>
-            <form action="{{ url_for('sync_now') }}" method="POST" style="margin-bottom: 1em;">
-                <button type="submit" class="btn btn-secondary">Manuellen Sync für alle Nutzer starten</button>
-            </form>
-            <div class="log-box" id="log-box-content">
-                {% for line in logs %}
-                    {{ line }}<br>
-                {% endfor %}
+    <div class="max-w-6xl mx-auto p-4 md:p-8">
+        <header class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-gray-200">
+            <h1 class="text-3xl font-bold">Sync-Dashboard</h1>
+            <div class="flex items-center gap-4 text-sm">
+                <span>Angemeldet als: <strong>{{ current_user.data.email }}</strong></span>
+                <a href="{{ url_for('logout') }}" 
+                   class="rounded-full bg-gray-200 px-4 py-2 font-medium text-gray-800 transition hover:bg-gray-300">
+                   Abmelden
+                </a>
             </div>
-        </div>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="mt-6 space-y-3">
+            {% for category, message in messages %}
+              {% set color = 'blue' if category == 'info' else ('green' if category == 'success' else 'red') %}
+              <div class="border-l-4 border-{{ color }}-400 bg-{{ color }}-50 p-4 rounded-lg">
+                  <div class="text-sm text-{{ color }}-800">
+                    {{ message }}
+                  </div>
+              </div>
+            {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <main class="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3">
+
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-neutral-100 p-6 rounded-2xl shadow-sm">
+                    <h3 class="text-xl font-semibold mb-4">Konfiguration</h3>
+                    
+                    <form action="{{ url_for('save_config') }}" method="POST" class="space-y-4">
+                        <div>
+                            <label for="source_id" class="flex items-center text-sm font-medium text-gray-700">
+                                Quell-Kalender ID
+                                <span class="group relative ml-2">
+                                    <span class="flex h-5 w-5 cursor-help items-center justify-center rounded-full bg-gray-300 text-xs font-bold text-gray-600">?</span>
+                                    <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs rounded-md bg-gray-800 px-3 py-2 text-center text-sm text-white opacity-0 transition-opacity group-hover:opacity-100">
+                                        Geben Sie die Google Kalender-ID (z.B. abc@group.calendar.google.com) oder die öffentliche .ics-URL (z.B. https://...) des Quellkalenders an.
+                                    </span>
+                                </span>
+                            </label>
+                            <input type="text" id="source_id" name="source_id" required value="{{ config.source_id }}"
+                                   class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        
+                        <div>
+                            <label for="target_id" class="flex items-center text-sm font-medium text-gray-700">
+                                Ziel-Kalender ID
+                                <span class="group relative ml-2">
+                                    <span class="flex h-5 w-5 cursor-help items-center justify-center rounded-full bg-gray-300 text-xs font-bold text-gray-600">?</span>
+                                    <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs rounded-md bg-gray-800 px-3 py-2 text-center text-sm text-white opacity-0 transition-opacity group-hover:opacity-100">
+                                        Geben Sie die Kalender-ID (aus den Google Kalender-Einstellungen) des Zielkalenders an. Dieser Kalender muss Ihnen gehören und wird bei jedem Sync geleert.
+                                    </span>
+                                </span>
+                            </label>
+                            <input type="text" id="target_id" name="target_id" required value="{{ config.target_id }}"
+                                   class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label for="regex_patterns" class="text-sm font-medium text-gray-700">Filter-Regeln (eine pro Zeile)</label>
+                            <textarea id="regex_patterns" name="regex_patterns" rows="6"
+                                      class="mt-1 block w-full rounded-lg border-gray-300 font-mono text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                      placeholder=".*Sport.*&#10;.*Tutorium.*">{{ config.regex_patterns | join('\n') }}</textarea>
+                        </div>
+
+                        <div>
+                            <button type="submit" 
+                                    class="rounded-full bg-blue-600 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                Speichern & Sync starten
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="lg:col-span-1 space-y-6">
+                <div class="bg-neutral-100 p-6 rounded-2xl shadow-sm">
+                    <h3 class="text-xl font-semibold">Live-Log</h3>
+                    <p class="text-sm text-gray-600 mt-1 mb-4">Der automatische Sync läuft stündlich.</p>
+                    
+                    <form action="{{ url_for('sync_now') }}" method="POST" class="mb-4">
+                        <button type="submit" 
+                                class="w-full rounded-full bg-gray-600 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                            Manuellen Sync für alle Nutzer starten
+                        </button>
+                    </form>
+
+                    <div id="log-box-content" 
+                         class="h-96 overflow-y-scroll rounded-lg bg-gray-800 p-4 font-mono text-xs text-gray-200">
+                        {% for line in logs %}
+                            {{ line }}<br>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+        </main>
     </div>
 
 <script>
@@ -144,14 +126,18 @@
             try {
                 const response = await fetch("{{ url_for('get_logs') }}");
                 if (!response.ok) {
-                    logBox.innerHTML = 'Fehler beim Laden der Logs: ' + response.statusText;
+                    logBox.innerHTML = '<span class="text-red-300">Fehler beim Laden der Logs: ' + response.statusText + '</span>';
                     return;
                 }
                 const data = await response.json();
-                logBox.innerHTML = data.logs.join('<br>');
-                logBox.scrollTop = logBox.scrollHeight;
+                // Baue HTML, um Zeilenumbrüche zu erzwingen
+                logBox.innerHTML = data.logs.map(line => `<span>${line}</span>`).join('<br>');
+                // Scrolle nur nach unten, wenn der User nicht gerade hochgescrollt hat
+                if (logBox.scrollTop + logBox.clientHeight >= logBox.scrollHeight - 50) {
+                     logBox.scrollTop = logBox.scrollHeight;
+                }
             } catch (e) {
-                logBox.innerHTML = 'Verbindungsfehler beim Laden der Logs: ' + e;
+                logBox.innerHTML = '<span class="text-red-300">Verbindungsfehler beim Laden der Logs: ' + e + '</span>';
                 isPolling = false;
             }
         }
