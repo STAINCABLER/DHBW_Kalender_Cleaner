@@ -31,7 +31,6 @@ SECRET_KEY = os.getenv('SECRET_KEY') # Dient als Flask Secret & Encryption Key
 if not all([APP_BASE_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SECRET_KEY]):
     raise ValueError("FEHLER: Nicht alle Umgebungsvariablen sind gesetzt (APP_BASE_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SECRET_KEY)")
 
-# Stelle sicher, dass das Datenverzeichnis existiert
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # --- Verschlüsselungs-Helper ---
@@ -50,8 +49,6 @@ def decrypt(token):
 # --- User-Modell & Daten-Handling ---
 
 class User(UserMixin):
-    """Ein User-Objekt, das seine Daten aus einer JSON-Datei liest/schreibt."""
-    
     def __init__(self, user_id):
         self.id = user_id
         self.data_file = os.path.join(DATA_DIR, f"{self.id}.json")
@@ -66,8 +63,8 @@ class User(UserMixin):
                 with open(self.data_file, 'r') as f:
                     return json.load(f)
             except json.JSONDecodeError:
-                pass # Fährt mit leeren Daten fort
-        return {'id': self.id} # Default
+                pass 
+        return {'id': self.id} 
 
     def save(self):
         with open(self.data_file, 'w') as f:
@@ -96,7 +93,6 @@ class User(UserMixin):
         self.save()
 
     def get_credentials(self):
-        """Baut ein gültiges Credentials-Objekt für API-Aufrufe."""
         encrypted_token = self.data.get('refresh_token_encrypted')
         if not encrypted_token:
             return None
@@ -124,12 +120,10 @@ def get_app():
     app = Flask(__name__)
     app.secret_key = SECRET_KEY
     
-    # Gunicorn-Logger einrichten, damit app.logger.info() funktioniert
     gunicorn_logger = logging.getLogger('gunicorn.error')
     app.logger.handlers = gunicorn_logger.handlers
     app.logger.setLevel(gunicorn_logger.level)
 
-    # Wenden Sie den ProxyFix an (für Traefik/HTTPS)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
     
     login_manager = LoginManager()
@@ -143,28 +137,23 @@ def get_app():
 
     @app.route('/favicon.ico')
     def favicon():
-        # Dient als statische Datei aus dem Root-Verzeichnis der App
         return app.send_static_file('favicon.ico')
 
     @app.route('/health')
     def health_check():
-        """Leichtgewichtiger Health-Check-Endpunkt."""
         return "OK", 200
 
     @app.route('/privacy')
     def privacy_policy():
-        """Zeigt die statische Datenschutz-Seite."""
         return render_template('privacy.html')
 
     @app.route('/terms')
     def terms_of_service():
-        """Zeigt die statische Nutzungsbedingungen-Seite."""
         return render_template('terms.html')
 
     # --- OAuth Flow Routen ---
 
     def get_oauth_flow():
-        """Erstellt ein OAuth Flow-Objekt."""
         return Flow.from_client_config(
             {
                 "web": {
@@ -181,18 +170,16 @@ def get_app():
 
     @app.route('/login')
     def login():
-        """Startet den Google-Login."""
         flow = get_oauth_flow()
         authorization_url, state = flow.authorization_url(
             access_type='offline', 
-            prompt='consent' # Erzwingt die erneute Abfrage des Refresh-Tokens
+            prompt='consent'
         )
         session['oauth_state'] = state
         return redirect(authorization_url)
 
     @app.route('/authorize')
     def authorize():
-        """Callback-Endpunkt von Google."""
         try:
             state = session.pop('oauth_state', None)
             flow = get_oauth_flow()
@@ -211,7 +198,7 @@ def get_app():
             id_info = id_token.verify_oauth2_token(
                 creds.id_token, GoogleRequest(), GOOGLE_CLIENT_ID
             )
-            user_id = id_info['sub'] # Googles permanente User-ID
+            user_id = id_info['sub'] 
             email = id_info['email']
         except Exception as e:
             flash(f"Fehler beim Validieren der User-ID: {e}", "error")
@@ -231,7 +218,6 @@ def get_app():
         encrypted_token = encrypt(creds.refresh_token)
         user.set_auth(email, encrypted_token)
 
-        # Loggt im 'docker logs'
         app.logger.info(f"User authenticated successfully: {email} (ID: {user_id})")
         
         login_user(user)
@@ -248,46 +234,35 @@ def get_app():
     @app.route('/delete-account', methods=['POST'])
     @login_required
     def delete_account():
-        """
-        Löscht die Konfigurationsdatei (.json) und Logdatei (.log) des Benutzers.
-        Erfordert eine Bestätigung per E-Mail-Eingabe.
-        """
         email_confirmation = request.form.get('email_confirmation', '').lower().strip()
         user_email = current_user.data.get('email', '').lower().strip()
 
-        # Sicherheitsprüfung: E-Mail-Bestätigung
         if not email_confirmation or email_confirmation != user_email:
             flash("Die E-Mail-Bestätigung war falsch. Ihr Konto wurde nicht gelöscht.", 'error')
             return redirect(url_for('index'))
         
         try:
-            # Wichtige Infos holen, BEVOR der User ausgeloggt wird
             user_data_file = current_user.data_file
-            user_log_file = os.path.join(DATA_DIR, f"{current_user.id}.log") # Pfad zur Logdatei
+            user_log_file = os.path.join(DATA_DIR, f"{current_user.id}.log") 
             user_id_log = current_user.id
             user_email_log = current_user.data.get('email', 'N/A')
 
-            # User ausloggen, um die Session zu beenden
             logout_user() 
 
-            # Physische JSON-Datei löschen
             if os.path.exists(user_data_file):
                 os.remove(user_data_file)
             
-            # Physische LOG-Datei löschen
             if os.path.exists(user_log_file):
                 os.remove(user_log_file)
 
-            # Loggt die Löschung in 'docker logs'
             app.logger.info(f"BENUTZERKONTO GELÖSCHT: {user_email_log} (ID: {user_id_log})")
             
             flash("Ihr Konto und alle Ihre Daten wurden erfolgreich und dauerhaft gelöscht.", 'success')
-            return redirect(url_for('index')) # Leitet zur Login-Seite
+            return redirect(url_for('index')) 
 
         except Exception as e:
             app.logger.error(f"Fehler beim Löschen des Kontos (ID: {user_id_log}): {e}")
             flash("Beim Löschen Ihres Kontos ist ein unerwarteter Fehler aufgetreten.", 'error')
-            # User ist bereits ausgeloggt, also einfach zur Startseite
             return redirect(url_for('index'))
 
     @app.route('/accept', methods=['POST'])
@@ -300,7 +275,6 @@ def get_app():
     # --- Anwendungs-Routen ---
 
     def get_log_lines_for_file(filepath, n=50):
-        """Liest die letzten n Zeilen aus einer bestimmten Log-Datei."""
         if not os.path.exists(filepath):
             return ["Noch keine Logs für diesen Benutzer erstellt. Starten Sie einen Sync."]
         try:
@@ -313,7 +287,6 @@ def get_app():
     @app.route('/logs')
     @login_required
     def get_logs():
-        """API-Endpunkt, der nur die Log-Zeilen des aktuellen Users zurückgibt."""
         user_log_file = os.path.join(DATA_DIR, f"{current_user.id}.log")
         logs = get_log_lines_for_file(user_log_file, n=50) 
         return jsonify({'logs': logs})
@@ -323,19 +296,17 @@ def get_app():
         if not current_user.is_authenticated:
             return render_template('login.html')
         
-        # Prüfen, ob der User die Info-Seite/Disclaimer akzeptiert hat
         if not current_user.data.get('has_accepted_disclaimer'):
             return render_template('info_page.html')
         
-        # User-Log für den initialen Ladevorgang holen
         user_log_file = os.path.join(DATA_DIR, f"{current_user.id}.log")
         initial_logs = get_log_lines_for_file(user_log_file, n=50)
         
-        # User ist angemeldet UND hat die Warnung akzeptiert
         return render_template('dashboard.html', 
                                config=current_user.get_config(),
                                logs=initial_logs)
 
+    # GEÄNDERT: `save_config` löst keinen Sync mehr aus
     @app.route('/save', methods=['POST'])
     @login_required
     def save_config():
@@ -351,39 +322,32 @@ def get_app():
             
         current_user.set_config(source_id, target_id, regex_patterns)
         
-        try:
-            # Leitet System-Logs an system.log weiter. User-Logs werden intern geschrieben.
-            command = f"python /app/sync_all_users.py >> /app/data/system.log 2>&1"
-            subprocess.Popen(
-                ['sh', '-c', command],
-                close_fds=True
-            )
-            flash("Konfiguration gespeichert. Erster Sync wird gestartet... (Logs aktualisieren sich)", 'success')
-        except Exception as e:
-            flash(f"Sync konnte nicht gestartet werden (Log-Fehler): {e}", "error")
+        # KEIN SUBPROCESS-AUFRUF MEHR
+        flash("Konfiguration erfolgreich gespeichert.", 'success')
             
         return redirect(url_for('index'))
 
+    # GEÄNDERT: `sync_now` ruft jetzt sync_all_users.py mit '--user' auf
     @app.route('/sync-now', methods=['POST'])
     @login_required
     def sync_now():
         try:
-            # Leitet System-Logs an system.log weiter. User-Logs werden intern geschrieben.
-            command = f"python /app/sync_all_users.py >> /app/data/system.log 2>&1"
+            # Ruft das Sync-Skript nur für den aktuellen User auf
+            user_id = current_user.id
+            command = f"python /app/sync_all_users.py --user {user_id} >> /app/data/system.log 2>&1"
             subprocess.Popen(
                 ['sh', '-c', command],
                 close_fds=True
             )
-            flash("Manuelle Synchronisierung gestartet. Das Log-Fenster wird aktualisiert.", 'info')
+            flash("Manueller Sync für Ihr Konto gestartet. Das Log-Fenster wird aktualisiert.", 'info')
         except Exception as e:
-            flash(f"Fehler beim Starten des Syncs: {e}", "error")
+            flash(f"Fehler beim Starten des Syncs: {e}", 'error')
             
         return redirect(url_for('index'))
 
     return app
 
-# Wird nur für `flask run` (lokales Debugging) benötigt
 if __name__ == '__main__':
-    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1' # Erlaube HTTP für lokales Debugging
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1' 
     app = get_app()
     app.run(debug=True, host='0.0.0.0', port=8000)

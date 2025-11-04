@@ -82,7 +82,7 @@
                         <div>
                             <button type="submit" 
                                     class="rounded-full bg-blue-600 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                Speichern & Sync starten
+                                Konfiguration speichern
                             </button>
                         </div>
                     </form>
@@ -120,13 +120,13 @@
 
             </div> <div class="lg:col-span-2 space-y-6">
                 <div class="bg-neutral-100 p-6 rounded-2xl shadow-sm">
-                    <h3 class="text-xl font-semibold">Live-Log</h3>
+                    <h3 class="text-xl font-semibold">Live-Log (Nur für Ihr Konto)</h3>
                     <p class="text-sm text-gray-600 mt-1 mb-4">Der automatische Sync läuft stündlich.</p>
                     
                     <form action="{{ url_for('sync_now') }}" method="POST" class="mb-4">
                         <button type="submit" 
                                 class="w-full rounded-full bg-gray-600 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
-                            Manuellen Sync für alle Nutzer starten
+                            Manuellen Sync starten
                         </button>
                     </form>
 
@@ -192,10 +192,10 @@
 
         if (deleteBtn && deleteConfirmBox) {
             deleteBtn.addEventListener('click', function(e) {
-                e.preventDefault(); // Verhindert Formular-Submit
-                deleteBtn.classList.add('hidden'); // Versteckt den ersten Button
-                deleteConfirmBox.classList.remove('hidden'); // Zeigt die Bestätigungsbox an
-                document.getElementById('email_confirmation').focus(); // Fokus auf das E-Mail-Feld
+                e.preventDefault();
+                deleteBtn.classList.add('hidden'); 
+                deleteConfirmBox.classList.remove('hidden');
+                document.getElementById('email_confirmation').focus();
             });
         }
     })();

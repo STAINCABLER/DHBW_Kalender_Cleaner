@@ -2,6 +2,7 @@ import os
 import json
 import glob
 import sys
+import argparse # NEU: Importieren
 from datetime import datetime
 from cryptography.fernet import Fernet
 from google.oauth2.credentials import Credentials
@@ -20,15 +21,13 @@ SCOPES = [
     'https://www.googleapis.com/auth/userinfo.profile'
 ]
 
-
 # ENV-Variablen müssen gesetzt sein
 SECRET_KEY = os.getenv('SECRET_KEY')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 
 def log(message):
-    # Diese Funktion loggt an stdout/stderr -> wird von cron/tee an system.log/docker logs geleitet
-    print(f"[{datetime.now().isoformat()}] CRON: {message}", flush=True)
+    print(f"[{datetime.now().isoformat()}] SYNC: {message}", flush=True) # Von CRON zu SYNC geändert für Klarheit
 
 def get_decrypter():
     if not SECRET_KEY:
@@ -47,7 +46,7 @@ def build_credentials(user_data, decrypter):
         token_json = decrypter.decrypt(encrypted_token.encode()).decode()
         
         creds = Credentials(
-            token=None,  # Access-Token ist abgelaufen, wird durch Refresh geholt
+            token=None,
             refresh_token=token_json,
             token_uri="https://oauth2.googleapis.com/token",
             client_id=GOOGLE_CLIENT_ID,
@@ -55,7 +54,6 @@ def build_credentials(user_data, decrypter):
             scopes=SCOPES
         )
         
-        # Token aktualisieren
         creds.refresh(GoogleRequest())
         return creds
         
@@ -64,16 +62,33 @@ def build_credentials(user_data, decrypter):
         return None
 
 def main():
-    log("Starte stündlichen Sync-Lauf für alle Benutzer...")
+    # NEU: Argumenten-Parser hinzugefügt
+    parser = argparse.ArgumentParser(description='Synchronisiert Kalender.')
+    parser.add_argument('--user', type=str, help='Die ID eines einzelnen Benutzers, der synchronisiert werden soll.')
+    args = parser.parse_args()
+
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
         log("FEHLER: GOOGLE_CLIENT_ID oder GOOGLE_CLIENT_SECRET nicht gesetzt.")
         sys.exit(1)
         
     decrypter = get_decrypter()
-    user_files = glob.glob(os.path.join(DATA_DIR, '*.json'))
+    
+    user_files = []
+    if args.user:
+        # Fall 1: Einzelner User-Sync (vom Web-UI ausgelöst)
+        log(f"Starte manuellen Sync-Lauf für einzelnen Benutzer: {args.user}...")
+        user_file_path = os.path.join(DATA_DIR, f"{args.user}.json")
+        if os.path.exists(user_file_path):
+            user_files.append(user_file_path)
+        else:
+            log(f"FEHLER: Konfigurationsdatei {user_file_path} für User {args.user} nicht gefunden.")
+    else:
+        # Fall 2: Alle-User-Sync (vom Cron-Job ausgelöst)
+        log("Starte stündlichen Sync-Lauf für alle Benutzer...")
+        user_files = glob.glob(os.path.join(DATA_DIR, '*.json'))
     
     if not user_files:
-        log("Keine Benutzer-Konfigurationsdateien in /app/data gefunden.")
+        log("Keine Benutzer-Konfigurationsdateien zum Verarbeiten gefunden.")
         return
 
     log(f"{len(user_files)} Benutzerkonfiguration(en) gefunden.")
@@ -96,10 +111,8 @@ def main():
                 
             service = build('calendar', 'v3', credentials=creds)
             
-            # NEU: User-Log-Pfad definieren
             user_log_path = os.path.join(DATA_DIR, f"{user_id}.log")
             
-            # GEÄNDERT: 'user_log_file' wird an den Syncer übergeben
             syncer = CalendarSyncer(service, log_callback=log, user_log_file=user_log_path)
             
             syncer.run_sync(user_data)
@@ -109,7 +122,7 @@ def main():
         except Exception as e:
             log(f"FEHLER bei der Verarbeitung von Datei {user_file}: {e}")
 
-    log("Sync-Lauf für alle Benutzer beendet.")
+    log("Sync-Lauf beendet.")
 
 if __name__ == "__main__":
     main()
