@@ -2,7 +2,7 @@ import os
 import json
 import requests
 import subprocess
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from cryptography.fernet import Fernet
 from google.oauth2.credentials import Credentials
@@ -131,6 +131,11 @@ def get_app():
     @login_manager.user_loader
     def load_user(user_id):
         return User(user_id)
+
+    @app.route('/favicon.ico')
+    def favicon():
+        # Dient als statische Datei aus dem Root-Verzeichnis der App
+        return send_from_directory(app.root_path, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
     @app.route('/health')
     def health_check():

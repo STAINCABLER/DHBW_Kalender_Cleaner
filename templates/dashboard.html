@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Kalender Sync</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('favicon') }}">
     <style> 
         body { font-family: sans-serif; max-width: 900px; margin: 2em auto; padding: 1em; line-height: 1.6; } 
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 1em; }
@@ -14,7 +15,10 @@
         label { display: block; font-weight: bold; } 
         input, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; } 
         textarea { min-height: 150px; font-family: monospace; }
-        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 2em; margin-top: 1em; }
+        
+        /* NEU: Linke Spalte ist 30% breiter als die rechte */
+        .container { display: grid; grid-template-columns: 1.3fr 1fr; gap: 2em; margin-top: 1em; }
+        
         .logs, .config-form { background: #f9f9f9; padding: 1.5em; border-radius: 8px; }
         pre { white-space: pre-wrap; word-wrap: break-word; } 
         .log-box { background: #333; color: #f5f5f5; padding: 1em; border-radius: 5px; height: 400px; overflow-y: scroll; font-family: monospace; font-size: 0.9em; } 
@@ -22,6 +26,47 @@
         .alert-error { background: #f8d7da; color: #721c24; } 
         .alert-success { background: #d4edda; color: #155724; } 
         .alert-info { background: #d1ecf1; color: #0c5460; }
+        
+        /* NEU: CSS für Info-Icons (vereinfacht) */
+        .info-icon {
+            display: inline-block;
+            position: relative;
+            background: #e0e0e0;
+            color: #424242;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 14px;
+            line-height: 18px;
+            text-align: center;
+            cursor: help;
+            margin-left: 6px;
+            font-weight: bold;
+        }
+        .info-tooltip {
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(33, 33, 33, 0.92);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            width: max-content;
+            max-width: 280px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease;
+            z-index: 10;
+        }
+        .info-icon:hover .info-tooltip,
+        .info-icon:focus .info-tooltip {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
         @media (max-width: 800px) { .container { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -47,11 +92,19 @@
             <h3>Konfiguration</h3>
             <form action="{{ url_for('save_config') }}" method="POST">
                 <div class="form-group">
-                    <label for="source_id">Quell-Kalender ID (oder ICS-URL)</label>
+                    <label for="source_id">Quell-Kalender ID
+                        <span class="info-icon" tabindex="0">?
+                            <span class="info-tooltip">Geben Sie die Google Kalender-ID (z.B. abc@group.calendar.google.com) oder die öffentliche .ics-URL (z.B. https://...) des Quellkalenders an.</span>
+                        </span>
+                    </label>
                     <input type="text" id="source_id" name="source_id" required value="{{ config.source_id }}">
                 </div>
                 <div class="form-group">
-                    <label for="target_id">Ziel-Kalender ID</label>
+                    <label for="target_id">Ziel-Kalender ID
+                        <span class="info-icon" tabindex="0">?
+                            <span class="info-tooltip">Geben Sie die Kalender-ID (aus den Google Kalender-Einstellungen) des Zielkalenders an. Dieser Kalender muss Ihnen gehören und wird bei jedem Sync geleert.</span>
+                        </span>
+                    </label>
                     <input type="text" id="target_id" name="target_id" required value="{{ config.target_id }}">
                 </div>
                 <div class="form-group">
@@ -62,8 +115,8 @@
             </form>
         </div>
         <div class="logs">
-            <h3>Live-Log (letzte 20 Zeilen)</h3>
-            <p>Der automatische Sync läuft stündlich (z.B. 1:00, 2:00, ...).</p>
+            <h3>Live-Log</h3>
+            <p>Der automatische Sync läuft stündlich.</p>
             <form action="{{ url_for('sync_now') }}" method="POST" style="margin-bottom: 1em;">
                 <button type="submit" class="btn btn-secondary">Manuellen Sync für alle Nutzer starten</button>
             </form>
@@ -75,49 +128,50 @@
         </div>
     </div>
 
-    <script>
-        (function() {
-            // ID der Log-Box aus Schritt A
-            const logBox = document.getElementById('log-box-content');
-            if (!logBox) return;
+<script>
+    (function() {
+        // ID der Log-Box aus Schritt A
+        const logBox = document.getElementById('log-box-content');
+        if (!logBox) return;
 
-            let isPolling = true; // Steuert, ob wir weiter pollen
-            let pollInterval = 5000; // 5 Sekunden
+        let isPolling = true; // Steuert, ob wir weiter pollen
+        let pollInterval = 5000; // 5 Sekunden
 
-            async function fetchLogs() {
-                if (!isPolling) return; // Stoppt, wenn die Funktion deaktiviert wurde
+        async function fetchLogs() {
+            if (!isPolling) return; // Stoppt, wenn die Funktion deaktiviert wurde
 
-                try {
-                    // Rufen Sie den neuen API-Endpunkt auf
-                    const response = await fetch("{{ url_for('get_logs') }}");
-                    
-                    if (!response.ok) {
-                        logBox.innerHTML = 'Fehler beim Laden der Logs: ' + response.statusText;
-                        return;
-                    }
-
-                    const data = await response.json();
-                    
-                    // Ersetze den Inhalt der Box durch die neuen Logs
-                    logBox.innerHTML = data.logs.join('<br>');
-                    
-                    // Scrolle automatisch nach unten
-                    logBox.scrollTop = logBox.scrollHeight;
-
-                } catch (e) {
-                    // Zeigt einen Fehler in der Box an, wenn die Verbindung fehlschlägt
-                    logBox.innerHTML = 'Verbindungsfehler beim Laden der Logs: ' + e;
-                    isPolling = false; // Stoppt das Polling bei einem schweren Fehler
+            try {
+                // Rufen Sie den neuen API-Endpunkt auf
+                const response = await fetch("{{ url_for('get_logs') }}");
+                
+                if (!response.ok) {
+                    logBox.innerHTML = 'Fehler beim Laden der Logs: ' + response.statusText;
+                    return;
                 }
+
+                const data = await response.json();
+                
+                // Ersetze den Inhalt der Box durch die neuen Logs
+                logBox.innerHTML = data.logs.join('<br>');
+                
+                // Scrolle automatisch nach unten
+                logBox.scrollTop = logBox.scrollHeight;
+
+            } catch (e) {
+                // Zeigt einen Fehler in der Box an, wenn die Verbindung fehlschlägt
+                logBox.innerHTML = 'Verbindungsfehler beim Laden der Logs: ' + e;
+                isPolling = false; // Stoppt das Polling bei einem schweren Fehler
             }
+        }
 
-            // 1. Führe den Abruf sofort beim Laden der Seite aus
-            fetchLogs();
+        // 1. Führe den Abruf sofort beim Laden der Seite aus
+        fetchLogs();
 
-            // 2. Führe den Abruf alle 5 Sekunden erneut aus
-            setInterval(fetchLogs, pollInterval);
+        // 2. Führe den Abruf alle 5 Sekunden erneut aus
+        setInterval(fetchLogs, pollInterval);
 
-        })();
-    </script>
+    })();
+</script>
+
 </body>
 </html>
