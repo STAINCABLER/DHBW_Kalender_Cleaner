@@ -93,6 +93,10 @@ class User(UserMixin):
         self.data['refresh_token_encrypted'] = encrypted_token
         self.save()
 
+    def set_disclaimer_accepted(self):
+        self.data['has_accepted_disclaimer'] = True
+        self.save()
+
     def get_credentials(self):
         """Baut ein gültiges Credentials-Objekt für API-Aufrufe."""
         encrypted_token = self.data.get('refresh_token_encrypted')
@@ -228,6 +232,13 @@ def get_app():
         flash("Erfolgreich abgemeldet.", "info")
         return redirect(url_for('index'))
 
+    @app.route('/accept', methods=['POST'])
+    @login_required
+    def accept_disclaimer():
+        current_user.set_disclaimer_accepted()
+        flash("Bestätigung erfolgreich. Willkommen beim Dashboard!", "success")
+        return redirect(url_for('index'))
+
     # --- Anwendungs-Routen ---
 
     def get_log_lines(n=50): # Auf 50 Zeilen erhöht
@@ -252,6 +263,12 @@ def get_app():
         if not current_user.is_authenticated:
             return render_template('login.html')
         
+        # Prüfen, ob der User die Info-Seite/Disclaimer akzeptiert hat
+        if not current_user.data.get('has_accepted_disclaimer'):
+            # User ist angemeldet, hat aber die Warnung noch nicht gesehen
+            return render_template('info_page.html')
+        
+        # User ist angemeldet UND hat die Warnung akzeptiert
         return render_template('dashboard.html', 
                                config=current_user.get_config(),
                                logs=get_log_lines())
