@@ -16,8 +16,9 @@
         input, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; } 
         textarea { min-height: 150px; font-family: monospace; }
         
-        /* NEU: Linke Spalte ist 30% breiter als die rechte */
-        .container { display: grid; grid-template-columns: 1.3fr 1fr; gap: 2em; margin-top: 1em; }
+        /* * GEÄNDERT: Linke Spalte ist jetzt doppelt (2fr) so breit wie die rechte (1fr).
+         */
+        .container { display: grid; grid-template-columns: 2fr 1fr; gap: 2em; margin-top: 1em; }
         
         .logs, .config-form { background: #f9f9f9; padding: 1.5em; border-radius: 8px; }
         pre { white-space: pre-wrap; word-wrap: break-word; } 
@@ -27,7 +28,7 @@
         .alert-success { background: #d4edda; color: #155724; } 
         .alert-info { background: #d1ecf1; color: #0c5460; }
         
-        /* NEU: CSS für Info-Icons (vereinfacht) */
+        /* CSS für Info-Icons (unverändert) */
         .info-icon {
             display: inline-block;
             position: relative;
@@ -67,6 +68,7 @@
             pointer-events: auto;
         }
 
+        /* Responsive-Anpassung für mobile Ansicht */
         @media (max-width: 800px) { .container { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -130,46 +132,31 @@
 
 <script>
     (function() {
-        // ID der Log-Box aus Schritt A
         const logBox = document.getElementById('log-box-content');
         if (!logBox) return;
 
-        let isPolling = true; // Steuert, ob wir weiter pollen
-        let pollInterval = 5000; // 5 Sekunden
+        let isPolling = true;
+        let pollInterval = 5000;
 
         async function fetchLogs() {
-            if (!isPolling) return; // Stoppt, wenn die Funktion deaktiviert wurde
+            if (!isPolling) return;
 
             try {
-                // Rufen Sie den neuen API-Endpunkt auf
                 const response = await fetch("{{ url_for('get_logs') }}");
-                
                 if (!response.ok) {
                     logBox.innerHTML = 'Fehler beim Laden der Logs: ' + response.statusText;
                     return;
                 }
-
                 const data = await response.json();
-                
-                // Ersetze den Inhalt der Box durch die neuen Logs
                 logBox.innerHTML = data.logs.join('<br>');
-                
-                // Scrolle automatisch nach unten
                 logBox.scrollTop = logBox.scrollHeight;
-
             } catch (e) {
-                // Zeigt einen Fehler in der Box an, wenn die Verbindung fehlschlägt
                 logBox.innerHTML = 'Verbindungsfehler beim Laden der Logs: ' + e;
-                isPolling = false; // Stoppt das Polling bei einem schweren Fehler
+                isPolling = false;
             }
         }
-
-        // 1. Führe den Abruf sofort beim Laden der Seite aus
         fetchLogs();
-
-        // 2. Führe den Abruf alle 5 Sekunden erneut aus
         setInterval(fetchLogs, pollInterval);
-
     })();
 </script>
 
