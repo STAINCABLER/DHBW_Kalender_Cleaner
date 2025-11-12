@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import requests
 import subprocess
 import logging
@@ -319,6 +320,21 @@ def get_app():
         source_timezone = request.form.get('source_timezone') # NEU
         
         regex_patterns = [line.strip() for line in regex_raw.splitlines() if line.strip()]
+
+        invalid_patterns = []
+        for pattern in regex_patterns:
+            try:
+                re.compile(pattern)
+            except re.error as e:
+                invalid_patterns.append(f"'{pattern}' ({e})")
+
+        if invalid_patterns:
+            details = '; '.join(invalid_patterns)
+            flash(f"Ungültige RegEx-Muster: {details}. Bitte korrigieren und erneut speichern.", 'error')
+            return redirect(url_for('index'))
+
+        if not source_timezone:
+            source_timezone = 'Europe/Berlin'
         
         if not source_id or not target_id:
             flash("Quell-ID und Ziel-ID sind Pflichtfelder.", 'error')

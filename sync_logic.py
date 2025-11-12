@@ -149,7 +149,25 @@ class CalendarSyncer:
         if not regex_patterns_raw:
             return events, 0
         
-        regex_patterns = [re.compile(p, re.IGNORECASE) for p in regex_patterns_raw if p]
+        regex_patterns = []
+        invalid_count = 0
+        for pattern in regex_patterns_raw:
+            if not pattern:
+                continue
+            try:
+                regex_patterns.append(re.compile(pattern, re.IGNORECASE))
+            except re.error as e:
+                invalid_count += 1
+                self.log(f"  -> Ignoriere ungültiges RegEx-Muster '{pattern}': {e}")
+
+        if invalid_count > 0 and not regex_patterns:
+            self.log("Keine gültigen RegEx-Filter gefunden. Alle Ereignisse bleiben erhalten.")
+        elif invalid_count > 0:
+            self.log(f"  -> {invalid_count} ungültige RegEx-Muster ignoriert.")
+
+        if not regex_patterns:
+            return events, 0
+
         filtered_events = []
         excluded_count = 0
         

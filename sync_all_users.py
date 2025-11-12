@@ -98,6 +98,7 @@ def main():
     for user_file in user_files:
         user_id = None
         lock = None
+        lock_acquired = False
         try:
             with open(user_file, 'r') as f:
                 user_data = json.load(f)
@@ -106,39 +107,40 @@ def main():
             
             # Sync-Lock für diesen User
             lock_file = os.path.join(DATA_DIR, f"{user_id}.sync.lock")
-            lock = FileLock(lock_file, timeout=2)
-            
-            try:
-                with lock.acquire(timeout=2):
-                    log(f"--- Verarbeite Nutzer: {user_data.get('email')} (ID: {user_id}) ---")
-                    
-                    if not user_data.get('source_id') or not user_data.get('target_id'):
-                        log(f"Nutzer {user_id} hat Setup nicht abgeschlossen. Übersprungen.")
-                        continue
+            lock = FileLock(lock_file)
 
-                    creds = build_credentials(user_data, decrypter)
-                    if not creds:
-                        continue
-                        
-                    service = build('calendar', 'v3', credentials=creds)
-                    
-                    user_log_path = os.path.join(DATA_DIR, f"{user_id}.log")
-                    
-                    syncer = CalendarSyncer(service, log_callback=log, user_log_file=user_log_path)
-                    
-                    syncer.run_sync(user_data)
-                    
-                    log(f"--- Sync für Nutzer {user_id} abgeschlossen ---")
-                    
+            try:
+                lock.acquire(timeout=2)
+                lock_acquired = True
             except Timeout:
                 log(f"!!! WARNUNG: Sync für User {user_id} läuft bereits. Überspringe diesen Lauf.")
                 continue
+
+            log(f"--- Verarbeite Nutzer: {user_data.get('email')} (ID: {user_id}) ---")
+            
+            if not user_data.get('source_id') or not user_data.get('target_id'):
+                log(f"Nutzer {user_id} hat Setup nicht abgeschlossen. Übersprungen.")
+                continue
+
+            creds = build_credentials(user_data, decrypter)
+            if not creds:
+                continue
+                
+            service = build('calendar', 'v3', credentials=creds)
+            
+            user_log_path = os.path.join(DATA_DIR, f"{user_id}.log")
+            
+            syncer = CalendarSyncer(service, log_callback=log, user_log_file=user_log_path)
+            
+            syncer.run_sync(user_data)
+            
+            log(f"--- Sync für Nutzer {user_id} abgeschlossen ---")
             
         except Exception as e:
             log(f"FEHLER bei der Verarbeitung von Datei {user_file}: {e}")
         finally:
             # Lock-Datei aufräumen (optional, FileLock räumt automatisch auf)
-            if lock and lock.is_locked:
+            if lock_acquired and lock and lock.is_locked:
                 try:
                     lock.release()
                 except:
