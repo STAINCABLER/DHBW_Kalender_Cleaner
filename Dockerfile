@@ -23,7 +23,10 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONHASHSEED=random
 
 # Supercronic Version (cron-Ersatz für Container, läuft als non-root)
+# SHA1 Checksums von https://github.com/aptible/supercronic/releases/tag/v0.2.33
 ARG SUPERCRONIC_VERSION=v0.2.33
+ARG SUPERCRONIC_SHA1SUM_AMD64=71b0d58cc53f6bd72cf2f293e09e294b79c666d8
+ARG SUPERCRONIC_SHA1SUM_ARM64=e0f0c06ebc5627e43b25475711e694450489ab00
 ARG TARGETARCH
 
 # Systemabhängigkeiten: curl (Healthcheck), coreutils (tee)
@@ -36,15 +39,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Entferne unnötige Dateien für kleineres Image
     && rm -rf /var/cache/apt/archives /var/log/apt /var/log/dpkg.log
 
-# Supercronic installieren mit Checksum-Verifikation
-RUN SUPERCRONIC_ARCH=$(echo "${TARGETARCH}" | sed 's/amd64/linux-amd64/;s/arm64/linux-arm64/') \
-    && curl -fsSL "https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/supercronic-${SUPERCRONIC_ARCH}" \
-         -o /usr/local/bin/supercronic \
-    && curl -fsSL "https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/supercronic-${SUPERCRONIC_ARCH}.sha256" \
-         -o /tmp/supercronic.sha256 \
-    && cd /usr/local/bin && sha256sum -c /tmp/supercronic.sha256 \
-    && rm /tmp/supercronic.sha256 \
-    && chmod +x /usr/local/bin/supercronic
+# Supercronic installieren mit SHA1-Checksum-Verifikation (offizielle Checksums)
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+        amd64) SUPERCRONIC_SHA1SUM="${SUPERCRONIC_SHA1SUM_AMD64}" ;; \
+        arm64) SUPERCRONIC_SHA1SUM="${SUPERCRONIC_SHA1SUM_ARM64}" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
+    esac; \
+    SUPERCRONIC="supercronic-linux-${TARGETARCH}"; \
+    curl -fsSLO "https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/${SUPERCRONIC}"; \
+    echo "${SUPERCRONIC_SHA1SUM}  ${SUPERCRONIC}" | sha1sum -c -; \
+    chmod +x "${SUPERCRONIC}"; \
+    mv "${SUPERCRONIC}" /usr/local/bin/supercronic
 
 # Non-Root User für Sicherheit (ohne Login-Shell für zusätzliche Härtung)
 RUN groupadd --gid 1000 appgroup \
