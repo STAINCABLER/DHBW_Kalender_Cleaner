@@ -241,6 +241,9 @@ class CalendarSyncer:
             if cached_last_modified:
                 headers['If-Modified-Since'] = cached_last_modified
             
+            # User-Agent setzen um Blocks durch manche Server zu vermeiden
+            headers['User-Agent'] = 'DHBW-Calendar-Cleaner/1.0 (https://github.com/STAINCABLER/DHBW_Calendar_Cleaner)'
+            
             response = requests.get(url, headers=headers, timeout=30)
             
             # 304 Not Modified = ICS hat sich nicht geändert
@@ -602,14 +605,17 @@ class CalendarSyncer:
             batch_events = events[i:i + batch_size]
             batch_ids = [None] * len(batch_events)
             
-            def create_callback(request_id, response, exception):
-                idx = int(request_id)
-                if exception:
-                    self.log(f"Batch-Insert Error #{idx}: {exception}")
-                else:
-                    batch_ids[idx] = response.get('id')
-            
             for attempt in range(max_attempts):
+                # Reset batch_ids bei jedem Versuch um stale Daten zu vermeiden
+                batch_ids = [None] * len(batch_events)
+                
+                def create_callback(request_id, response, exception):
+                    idx = int(request_id)
+                    if exception:
+                        self.log(f"Batch-Insert Error #{idx}: {exception}")
+                    else:
+                        batch_ids[idx] = response.get('id')
+                
                 try:
                     batch = self.service.new_batch_http_request(callback=create_callback)
                     for idx, event in enumerate(batch_events):

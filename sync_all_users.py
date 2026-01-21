@@ -69,7 +69,7 @@ def main():
             log(f"FEHLER: Konfigurationsdatei {user_file_path} für User {args.user} nicht gefunden.")
     else:
         # Alle User (Cron-Job)
-        log("Starte 8-stündlichen Sync-Lauf für alle Benutzer...")
+        log("Starte stündlichen Sync-Lauf für alle Benutzer...")
         user_files = glob.glob(os.path.join(DATA_DIR, '*.json'))
     
     if not user_files:
