@@ -1,5 +1,5 @@
 # Python 3.11 Basis-Image
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 # ===== Security Labels (OCI Standard) =====
 LABEL org.opencontainers.image.title="DHBW Calendar Cleaner" \
