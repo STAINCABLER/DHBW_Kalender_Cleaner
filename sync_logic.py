@@ -576,10 +576,9 @@ class CalendarSyncer:
             self.log("Sync abgebrochen: source_id oder target_id fehlt")
             return
 
-        # Zeitfenster: Nur zukünftige Events synchronisieren (ab jetzt bis +6 Monate)
-        # Dies reduziert API-Calls drastisch und vermeidet Rate-Limits bei stündlicher Sync
+        # Zeitfenster: 6 Monate in Vergangenheit und Zukunft synchronisieren
         now = datetime.now(timezone.utc)
-        time_min_dt = now - timedelta(days=1)  # 1 Tag Puffer für laufende Events
+        time_min_dt = now - timedelta(days=180)  # 6 Monate in die Vergangenheit
         time_max_dt = now + timedelta(days=180)  # 6 Monate in die Zukunft
         
         time_min_iso = time_min_dt.isoformat()
