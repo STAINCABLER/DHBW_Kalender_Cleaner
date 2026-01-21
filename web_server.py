@@ -69,7 +69,7 @@ def get_app():
     app.logger.handlers = gunicorn_logger.handlers
     app.logger.setLevel(gunicorn_logger.level)
 
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
     
     login_manager = LoginManager()
     login_manager.init_app(app)
@@ -146,11 +146,17 @@ def get_app():
         try:
             state = session.pop('oauth_state', None)
             flow = get_oauth_flow()
+            
+            # Rekonstruiere die korrekte authorization_response URL
+            # request.url kann hinter einem Reverse Proxy falsch sein (http statt https)
+            authorization_response = f"{APP_BASE_URL}/authorize?{request.query_string.decode('utf-8')}"
+            
             flow.fetch_token(
-                authorization_response=request.url,
+                authorization_response=authorization_response,
                 state=state
             )
         except Exception as e:
+            app.logger.error(f"OAuth token fetch failed: {e}")
             flash(f"OAuth-Fehler: {e}. Bitte erneut versuchen.", "error")
             return redirect(url_for('index'))
 
