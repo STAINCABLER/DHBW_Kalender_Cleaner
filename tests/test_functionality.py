@@ -13,7 +13,6 @@ Testet:
 import os
 import re
 import json
-import tempfile
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch, MagicMock
