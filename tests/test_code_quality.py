@@ -356,8 +356,6 @@ class TestModuleIntegration:
         """config.py kann importiert werden."""
         try:
             from config import (
-                DATA_DIR, GOOGLE_SCOPES, APP_BASE_URL,
-                GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SECRET_KEY,
                 encrypt, decrypt, validate_config, init
             )
             assert callable(encrypt)

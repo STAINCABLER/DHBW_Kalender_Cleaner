@@ -2,9 +2,7 @@
 Tests für config.py: Validierung, Verschlüsselung, Konstanten.
 """
 
-import os
 import pytest
-from cryptography.fernet import Fernet
 
 
 class TestConfigValidation:

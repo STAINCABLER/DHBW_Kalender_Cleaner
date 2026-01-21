@@ -10,11 +10,10 @@ Testet:
 - Edge Cases und Fehlerbedingungen
 """
 
-import os
 import re
 import json
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch, MagicMock
 
 import pytest
