@@ -283,6 +283,63 @@ class CalendarSyncer:
         self.log(f"Filter: {excluded_count} ausgeschlossen, {len(filtered_events)} verbleiben")
         return filtered_events, excluded_count
 
+    def _fetch_target_events(self, target_id, time_min=None, time_max=None):
+        """Holt alle Events aus dem Zielkalender für Cache-Initialisierung."""
+        self.log(f"Zielkalender-Scan: Hole existierende Events aus {target_id}")
+        all_events = []
+        page_token = None
+        
+        try:
+            while True:
+                params = {
+                    'calendarId': target_id,
+                    'singleEvents': True,
+                    'orderBy': 'startTime',
+                    'maxResults': 250
+                }
+                if time_min:
+                    params['timeMin'] = time_min
+                if time_max:
+                    params['timeMax'] = time_max
+                if page_token:
+                    params['pageToken'] = page_token
+
+                events_result = self.service.events().list(**params).execute()
+                items = events_result.get('items', [])
+                all_events.extend(items)
+                
+                page_token = events_result.get('nextPageToken')
+                if not page_token:
+                    break
+                    
+            self.log(f"Zielkalender: {len(all_events)} existierende Events gefunden")
+            return all_events
+        except HttpError as error:
+            self.log(f"Zielkalender-Scan fehlgeschlagen: {error}")
+            return []
+
+    def _initialize_cache_from_target(self, target_id, time_min=None, time_max=None):
+        """Initialisiert den Cache basierend auf existierenden Events im Zielkalender."""
+        existing_events = self._fetch_target_events(target_id, time_min, time_max)
+        
+        cached_hashes = {}
+        cached_event_ids = {}
+        
+        for event in existing_events:
+            # Standardisiere das Event für Hash-Berechnung
+            std_event = self.standardize_event(event, 'google')
+            key = self._get_event_key(std_event)
+            hash_val = self._compute_event_hash(std_event)
+            
+            # Event-ID aus Google-Event extrahieren
+            event_id = event.get('id')
+            if event_id:
+                cached_hashes[key] = hash_val
+                cached_event_ids[key] = event_id
+        
+        self.log(f"Cache initialisiert mit {len(cached_event_ids)} Events aus Zielkalender")
+        return cached_hashes, cached_event_ids
+
     def sync_to_target(
         self,
         target_id,
@@ -298,7 +355,15 @@ class CalendarSyncer:
         # Delta-Sync vorbereiten
         event_cache = self._load_cache('events')
         cached_hashes = event_cache.get('hashes', {})
-        cached_event_ids = event_cache.get('event_ids', {})  # key -> Google Event ID
+        cached_event_ids = event_cache.get('event_ids', {})
+        
+        # KRITISCH: Bei leerem Cache erst den Zielkalender scannen!
+        # Verhindert Duplikate beim ersten Sync oder nach Cache-Verlust
+        if not cached_hashes and not cached_event_ids:
+            self.log("Cache leer - initialisiere aus Zielkalender (Duplikat-Prävention)")
+            cached_hashes, cached_event_ids = self._initialize_cache_from_target(
+                target_id, time_min, time_max
+            )
         
         # Berechne Hashes für neue Events
         new_hashes = {}
