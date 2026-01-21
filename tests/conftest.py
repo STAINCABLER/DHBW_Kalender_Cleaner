@@ -4,13 +4,26 @@ Gemeinsame Pytest-Fixtures für alle Testmodule.
 
 import os
 import sys
-import json
 import tempfile
+import json
 import shutil
 from pathlib import Path
 
-import pytest
+# WICHTIG: Umgebungsvariablen MÜSSEN VOR dem Import anderer Module gesetzt werden,
+# da config.py und sync_logic.py bei Import DATA_DIR auswerten!
+# Dieses temporäre Verzeichnis wird für die gesamte Test-Session verwendet.
+_SESSION_TEMP_DIR = tempfile.mkdtemp(prefix='dhbw_calendar_test_')
+os.environ['DATA_DIR'] = _SESSION_TEMP_DIR
+
+# Auch SECRET_KEY muss früh gesetzt werden
 from cryptography.fernet import Fernet
+_TEST_SECRET_KEY = Fernet.generate_key().decode()
+os.environ['SECRET_KEY'] = _TEST_SECRET_KEY
+os.environ['APP_BASE_URL'] = 'http://localhost:8000'
+os.environ['GOOGLE_CLIENT_ID'] = 'test-client-id.apps.googleusercontent.com'
+os.environ['GOOGLE_CLIENT_SECRET'] = 'test-client-secret'
+
+import pytest
 
 # Projektverzeichnis zum Python-Pfad hinzufügen
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -21,17 +34,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_environment():
     """Initialisiert Umgebungsvariablen für alle Tests."""
-    # Generiere einen gültigen Fernet-Key für Tests
-    test_secret_key = Fernet.generate_key().decode()
-    
-    os.environ['APP_BASE_URL'] = 'http://localhost:8000'
-    os.environ['GOOGLE_CLIENT_ID'] = 'test-client-id.apps.googleusercontent.com'
-    os.environ['GOOGLE_CLIENT_SECRET'] = 'test-client-secret'
-    os.environ['SECRET_KEY'] = test_secret_key
-    
+    # Umgebungsvariablen wurden bereits auf Modulebene gesetzt
     yield
     
-    # Cleanup (optional, da Tests in isolierter Umgebung laufen)
+    # Cleanup: Temporäres Verzeichnis löschen
+    try:
+        shutil.rmtree(_SESSION_TEMP_DIR)
+    except Exception:
+        pass  # Ignoriere Fehler beim Aufräumen
 
 
 @pytest.fixture

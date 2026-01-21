@@ -11,7 +11,9 @@ from googleapiclient.http import BatchHttpRequest
 from ics import Calendar
 
 # Cache-Verzeichnis für ICS-ETags und Event-Hashes
-CACHE_DIR = '/app/data/.cache'
+# Dynamisch aus DATA_DIR ableiten für Container- und Test-Kompatibilität
+DATA_DIR = os.getenv('DATA_DIR', '/app/data')
+CACHE_DIR = os.path.join(DATA_DIR, '.cache')
 
 
 class CalendarSyncer:
