@@ -2,10 +2,7 @@
 Tests für models.py: User-Erstellung, Persistierung, Konfiguration.
 """
 
-import os
 import json
-import pytest
-from pathlib import Path
 
 
 class TestUserCreation:

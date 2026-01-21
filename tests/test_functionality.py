@@ -13,8 +13,7 @@ Testet:
 import re
 import json
 from pathlib import Path
-from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
+from datetime import datetime
 
 import pytest
 import arrow

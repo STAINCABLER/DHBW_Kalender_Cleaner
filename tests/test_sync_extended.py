@@ -2,9 +2,6 @@
 Erweiterte Tests für sync_logic.py und sync_all_users.py.
 """
 
-import os
-import json
-import pytest
 from unittest.mock import MagicMock, patch, Mock
 from datetime import datetime, timedelta
 import responses
