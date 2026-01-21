@@ -1,57 +1,41 @@
-<!DOCTYPE html>
-<html lang="de" class="h-full bg-slate-100">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - DHBW Calendar Cleaner</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-</head>
-<body class="h-full grid place-items-center">
+{% extends "base.html" %}
+{% from "macros.html" import flash_messages %}
 
-    <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-xl">
-        <div class="text-center">
-            <h1 class="text-3xl font-bold tracking-tight text-gray-900">
-                DHBW Calendar Cleaner
-            </h1>
-            <p class="mt-2 text-gray-600">
-                Bitte melden Sie sich mit Ihrem Google-Konto an, um die Synchronisierung einzurichten.
-            </p>
-        </div>
+{% block html_class %}h-full bg-slate-100{% endblock %}
+{% block title %}Login - DHBW Calendar Cleaner{% endblock %}
+{% block body_class %}h-full grid place-items-center{% endblock %}
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <div class="space-y-3">
-            {% for category, message in messages %}
-              {% set color = 'blue' if category == 'info' else 'red' %}
-              <div class="border-l-4 border-{{ color }}-400 bg-{{ color }}-50 p-4 rounded-lg">
-                  <div class="text-sm text-{{ color }}-800">
-                    {{ message }}
-                  </div>
-              </div>
-            {% endfor %}
-            </div>
-          {% endif %}
-        {% endwith %}
-
-        <a href="{{ url_for('login') }}" 
-           class="flex w-full items-center justify-center gap-3 rounded-full bg-blue-600 px-6 py-3 font-medium text-white shadow-md transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-            <img class="h-6 w-6" src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo">
-            <span>Mit Google anmelden</span>
-        </a>
+{% block content %}
+<div class="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-xl">
+    <div class="text-center">
+        <h1 class="text-3xl font-bold tracking-tight text-gray-900">
+            DHBW Calendar Cleaner
+        </h1>
+        <p class="mt-2 text-gray-600">
+            Bitte melden Sie sich mit Ihrem Google-Konto an, um die Synchronisierung einzurichten.
+        </p>
     </div>
 
-    <footer class="text-center text-xs text-gray-500 py-4 space-y-1 absolute bottom-4 w-full">
-        <div class="flex justify-center gap-4 mb-1">
-            <a href="{{ url_for('privacy_policy') }}" class="font-medium text-blue-600 hover:underline">Datenschutz</a>
-            <a href="{{ url_for('terms_of_service') }}" class="font-medium text-blue-600 hover:underline">Nutzungsbedingungen</a>
-        </div>
-        <p>
-            Mehr Projekte findest du bei 
-            <a href="https://thulium-labs.de" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">thulium-labs.de</a>.
-        </p>
-        <p>Made by Tobias Maimone</p>
-    </footer>
+    {{ flash_messages() }}
 
-</body>
-</html>
+    <a href="{{ url_for('login') }}" 
+       class="flex w-full items-center justify-center gap-3 rounded-full bg-blue-600 px-6 py-3 font-medium text-white shadow-md transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+        <img class="h-6 w-6" src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo">
+        <span>Mit Google anmelden</span>
+    </a>
+</div>
+{% endblock %}
+
+{% block footer %}
+<footer class="text-center text-xs text-gray-500 py-4 space-y-1 absolute bottom-4 w-full">
+    <div class="flex justify-center gap-4 mb-1">
+        <a href="{{ url_for('privacy_policy') }}" class="font-medium text-blue-600 hover:underline">Datenschutz</a>
+        <a href="{{ url_for('terms_of_service') }}" class="font-medium text-blue-600 hover:underline">Nutzungsbedingungen</a>
+    </div>
+    <p>
+        Mehr Projekte findest du bei 
+        <a href="https://thulium-labs.de" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">thulium-labs.de</a>.
+    </p>
+    <p>Made by Tobias Maimone</p>
+</footer>
+{% endblock %}

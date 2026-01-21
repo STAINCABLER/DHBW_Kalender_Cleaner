@@ -1,0 +1,90 @@
+name: 🐛 Bug Report
+description: Einen Fehler melden
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke, dass du dir die Zeit nimmst, einen Bug zu melden! 🙏
+        
+  - type: textarea
+    id: description
+    attributes:
+      label: Beschreibung
+      description: Eine klare Beschreibung des Bugs
+      placeholder: Was ist passiert?
+    validations:
+      required: true
+      
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Schritte zur Reproduktion
+      description: Wie kann der Bug reproduziert werden?
+      placeholder: |
+        1. Gehe zu '...'
+        2. Klicke auf '...'
+        3. Scrolle zu '...'
+        4. Fehler erscheint
+    validations:
+      required: true
+      
+  - type: textarea
+    id: expected
+    attributes:
+      label: Erwartetes Verhalten
+      description: Was hättest du erwartet?
+    validations:
+      required: true
+      
+  - type: textarea
+    id: actual
+    attributes:
+      label: Tatsächliches Verhalten
+      description: Was ist stattdessen passiert?
+    validations:
+      required: true
+      
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Welche Version/Tag verwendest du?
+      placeholder: "z.B. latest, v1.0.5, sha-abc1234"
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment-Methode
+      options:
+        - Docker Run
+        - Docker Compose
+        - Andere
+    validations:
+      required: true
+      
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevante Log-Ausgaben (falls vorhanden)
+      render: shell
+      
+  - type: textarea
+    id: additional
+    attributes:
+      label: Zusätzliche Informationen
+      description: Screenshots, Konfiguration, etc.
+      
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checkliste
+      options:
+        - label: Ich habe die [SECURITY.md](../SECURITY.md) gelesen und dies ist kein Sicherheitsproblem
+          required: true
+        - label: Ich habe nach ähnlichen Issues gesucht
+          required: true

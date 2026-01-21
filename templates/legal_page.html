@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block html_class %}h-full bg-slate-100{% endblock %}
+{% block title %}{{ title }} - DHBW Calendar Cleaner{% endblock %}
+{% block body_class %}py-12 px-4{% endblock %}
+
+{% block head_extra %}
+<style>
+    /* Markdown Styling für Prose-ähnliches Layout */
+    .markdown-content h1 {
+        font-size: 1.875rem;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 0.5rem;
+        line-height: 1.2;
+    }
+    .markdown-content h2 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #111827;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+    .markdown-content p {
+        margin-bottom: 1rem;
+        color: #374151;
+        line-height: 1.625;
+    }
+    .markdown-content ul {
+        list-style-type: disc;
+        margin-left: 1.5rem;
+        margin-bottom: 1rem;
+        color: #374151;
+    }
+    .markdown-content ul li {
+        margin-bottom: 0.25rem;
+    }
+    .markdown-content a {
+        color: #2563eb;
+        text-decoration: none;
+    }
+    .markdown-content a:hover {
+        text-decoration: underline;
+    }
+    .markdown-content strong {
+        font-weight: 600;
+    }
+    .markdown-content em {
+        font-style: italic;
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+    .markdown-content hr {
+        margin: 1.5rem 0;
+        border-color: #e5e7eb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-3xl mx-auto p-8 space-y-6 bg-white rounded-2xl shadow-xl">
+    <div class="markdown-content">
+        {{ content }}
+    </div>
+
+    <div class="pt-4">
+         <a href="{{ url_for('index') }}" 
+            class="inline-flex items-center gap-2 rounded-full bg-gray-200 px-4 py-2 font-medium text-gray-800 transition hover:bg-gray-300">
+            &larr; Zurück
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+<footer class="text-center text-xs text-gray-500 py-6 space-y-1 w-full max-w-3xl mx-auto">
+     <div class="flex justify-center gap-4 mb-1">
+        <a href="{{ url_for('privacy_policy') }}" class="font-medium text-blue-600 hover:underline">Datenschutz</a>
+        <a href="{{ url_for('terms_of_service') }}" class="font-medium text-blue-600 hover:underline">Nutzungsbedingungen</a>
+    </div>
+    <p>
+        Mehr Projekte findest du bei 
+        <a href="https://thulium-labs.de" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">thulium-labs.de</a>.
+    </p>
+    <p>Made by Tobias Maimone</p>
+</footer>
+{% endblock %}

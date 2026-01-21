@@ -9,18 +9,29 @@ on:
 
 jobs:
   build-and-push:
+    # WICHTIG: Nicht ausführen wenn Dependabot den Push ausgelöst hat
+    # (dafür gibt es den separaten dependabot-autobuild.yml Workflow)
+    if: github.actor != 'dependabot[bot]'
+    
     runs-on: ubuntu-latest
     
     # WICHTIG: Setzt Berechtigungen für das GITHUB_TOKEN,
-    # damit es in die GHCR schreiben (packages: write) 
-    # und den Code lesen (contents: read) kann.
+    # damit es in die GHCR schreiben (packages: write), 
+    # den Code lesen (contents: read) und Security Alerts erstellen (security-events: write) kann.
     permissions:
       contents: read
       packages: write
+      security-events: write  # Für Trivy SARIF-Upload
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -37,12 +48,57 @@ jobs:
         with:
           # Das Image wird benannt als: ghcr.io/IHR-USERNAME/IHR-REPO-NAME
           images: ghcr.io/${{ github.repository }}
+          tags: |
+            # Branch-Name als Tag (z.B. main)
+            type=ref,event=branch
+            # Auch als "latest" taggen bei main-Branch
+            type=raw,value=latest,enable={{is_default_branch}}
+            # SHA für eindeutige Referenz (kurz)
+            type=sha,prefix=sha-,format=short
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          # Verwendet die von der 'meta'-Aktion generierten Tags (z.B. :latest, :main)
+          platforms: linux/amd64,linux/arm64
+          # Verwendet die von der 'meta'-Aktion generierten Tags
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # ===== Best Practices: SBOM & Provenance =====
+          # SBOM (Software Bill of Materials) für Supply Chain Transparenz
+          sbom: true
+          # Provenance Attestation für kryptografische Herkunftsnachweise
+          provenance: mode=max
+          # Cache für schnellere Builds
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ===== Best Practices: Vulnerability Scanning =====
+      # Trivy scannt das gebaute Image auf bekannte Sicherheitslücken (CVEs)
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ghcr.io/${{ github.repository }}:main'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          # Scan auch wenn Image bereits gepusht
+          vuln-type: 'os,library'
+
+      # Upload der Ergebnisse zu GitHub Security Tab
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Summary
+        run: |
+          echo "## 🐳 Docker Build erfolgreich!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | Image |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| \`latest\` | \`ghcr.io/${{ github.repository }}:latest\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`main\` | \`ghcr.io/${{ github.repository }}:main\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`sha-${GITHUB_SHA::7}\` | \`ghcr.io/${{ github.repository }}:sha-${GITHUB_SHA::7}\` |" >> $GITHUB_STEP_SUMMARY

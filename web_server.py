@@ -1,131 +1,67 @@
 import os
-import json
-import re
-import requests
-import subprocess
 import logging
 import pytz
+import markdown
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
-from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
-from cryptography.fernet import Fernet
-from google.oauth2.credentials import Credentials
+from markupsafe import Markup
+from flask_login import LoginManager, login_user, logout_user, current_user, login_required
+from flask_wtf.csrf import CSRFProtect, CSRFError
+from flask_talisman import Talisman
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from google_auth_oauthlib.flow import Flow
-from google.auth.transport.requests import Request as GoogleRequest
 from googleapiclient.discovery import build
 from werkzeug.middleware.proxy_fix import ProxyFix
 from filelock import FileLock, Timeout
+
+# Lokale Module
+import config
+from config import (
+    DATA_DIR, CONTENT_DIR, GOOGLE_SCOPES,
+    APP_BASE_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SECRET_KEY,
+    encrypt,
+    RATE_LIMIT_DEFAULT, RATE_LIMIT_LOGIN, RATE_LIMIT_SYNC
+)
+from models import User
 from sync_logic import CalendarSyncer
 
-# --- Konfiguration ---
+config.init()
 
-DATA_DIR = '/app/data'
-SCOPES = [
-    'https://www.googleapis.com/auth/calendar',
-    'openid',
-    'https://www.googleapis.com/auth/userinfo.email',
-    'https://www.googleapis.com/auth/userinfo.profile'
-]
-
-# ENV-Variablen
-APP_BASE_URL = os.getenv('APP_BASE_URL')
-GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
-GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
-SECRET_KEY = os.getenv('SECRET_KEY') # Dient als Flask Secret & Encryption Key
-
-if not all([APP_BASE_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SECRET_KEY]):
-    raise ValueError("FEHLER: Nicht alle Umgebungsvariablen sind gesetzt (APP_BASE_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SECRET_KEY)")
-
-os.makedirs(DATA_DIR, exist_ok=True)
-
-# --- Verschlüsselungs-Helper ---
-
-try:
-    fernet = Fernet(SECRET_KEY.encode())
-except Exception as e:
-    raise ValueError(f"SECRET_KEY ist ungültig. Muss ein 32-Byte base64-kodierter String sein. Fehler: {e}")
-
-def encrypt(data):
-    return fernet.encrypt(data.encode()).decode()
-
-def decrypt(token):
-    return fernet.decrypt(token.encode()).decode()
-
-# --- User-Modell & Daten-Handling ---
-
-class User(UserMixin):
-    def __init__(self, user_id):
-        self.id = user_id
-        self.data_file = os.path.join(DATA_DIR, f"{self.id}.json")
-        self.data = self.load_data()
-
-    def get_id(self):
-        return str(self.id)
-
-    def load_data(self):
-        if os.path.exists(self.data_file):
-            try:
-                with open(self.data_file, 'r') as f:
-                    return json.load(f)
-            except json.JSONDecodeError:
-                pass 
-        return {'id': self.id} 
-
-    def save(self):
-        with open(self.data_file, 'w') as f:
-            json.dump(self.data, f, indent=2)
-
-    def get_config(self):
-        return {
-            'source_id': self.data.get('source_id', ''),
-            'target_id': self.data.get('target_id', ''),
-            'regex_patterns': self.data.get('regex_patterns', []),
-            'source_timezone': self.data.get('source_timezone', 'Europe/Berlin') # NEU (Standard: Berlin)
-        }
-
-    def set_config(self, source_id, target_id, regex_list, source_timezone): # NEU: Parameter hinzugefügt
-        self.data['source_id'] = source_id
-        self.data['target_id'] = target_id
-        self.data['regex_patterns'] = regex_list
-        self.data['source_timezone'] = source_timezone # NEU
-        self.save()
-
-    def set_auth(self, email, encrypted_token):
-        self.data['email'] = email
-        self.data['refresh_token_encrypted'] = encrypted_token
-        self.save()
-
-    def set_disclaimer_accepted(self):
-        self.data['has_accepted_disclaimer'] = True
-        self.save()
-
-    def get_credentials(self):
-        encrypted_token = self.data.get('refresh_token_encrypted')
-        if not encrypted_token:
-            return None
-        
-        try:
-            refresh_token = decrypt(encrypted_token)
-            creds = Credentials(
-                token=None,
-                refresh_token=refresh_token,
-                token_uri="https://oauth2.googleapis.com/token",
-                client_id=GOOGLE_CLIENT_ID,
-                client_secret=GOOGLE_CLIENT_SECRET,
-                scopes=SCOPES
-            )
-            creds.refresh(GoogleRequest())
-            return creds
-        except Exception as e:
-            print(f"Fehler beim Aktualisieren des Tokens für User {self.id}: {e}")
-            return None
-
-
-# --- Flask App Initialisierung ---
 
 def get_app():
     app = Flask(__name__)
     app.secret_key = SECRET_KEY
+    
+    # CSRF-Schutz aktivieren
+    csrf = CSRFProtect(app)
+    
+    # Security Headers
+    csp = {
+        'default-src': "'self'",
+        'script-src': ["'self'", "'unsafe-inline'", 'cdn.tailwindcss.com'],
+        'style-src': ["'self'", "'unsafe-inline'", 'cdn.tailwindcss.com'],
+        'img-src': ["'self'", 'data:', 'https:'],
+        'font-src': ["'self'", 'data:'],
+        'connect-src': ["'self'"],
+    }
+    Talisman(
+        app,
+        content_security_policy=csp,
+        force_https=False,  # HTTPS wird vom Reverse Proxy gehandhabt
+        session_cookie_secure=True,
+        session_cookie_http_only=True,
+        strict_transport_security=True,
+        strict_transport_security_max_age=31536000,  # 1 Jahr
+    )
+    
+    # Rate Limiting
+    limiter = Limiter(
+        key_func=get_remote_address,
+        app=app,
+        default_limits=RATE_LIMIT_DEFAULT,
+        storage_uri="memory://",
+    )
     
     gunicorn_logger = logging.getLogger('gunicorn.error')
     app.logger.handlers = gunicorn_logger.handlers
@@ -142,6 +78,12 @@ def get_app():
     def load_user(user_id):
         return User(user_id)
 
+    # CSRF-Fehlerbehandlung
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        flash('Sicherheitsfehler: Ungültiges oder abgelaufenes Formular-Token. Bitte erneut versuchen.', 'error')
+        return redirect(url_for('index'))
+
     @app.route('/favicon.ico')
     def favicon():
         return app.send_static_file('favicon.ico')
@@ -150,13 +92,24 @@ def get_app():
     def health_check():
         return "OK", 200
 
+    def render_markdown_page(md_filename, title):
+        """Lädt eine Markdown-Datei und rendert sie als HTML."""
+        md_path = os.path.join(CONTENT_DIR, md_filename)
+        try:
+            with open(md_path, 'r', encoding='utf-8') as f:
+                md_content = f.read()
+            html_content = markdown.markdown(md_content, extensions=['tables', 'fenced_code'])
+            return render_template('legal_page.html', title=title, content=Markup(html_content))
+        except FileNotFoundError:
+            return f"Datei {md_filename} nicht gefunden.", 404
+
     @app.route('/privacy')
     def privacy_policy():
-        return render_template('privacy.html')
+        return render_markdown_page('privacy.md', 'Datenschutzerklärung')
 
     @app.route('/terms')
     def terms_of_service():
-        return render_template('terms.html')
+        return render_markdown_page('terms.md', 'Nutzungsbedingungen & Impressum')
 
     # --- OAuth Flow Routen ---
 
@@ -171,11 +124,12 @@ def get_app():
                     "redirect_uris": [f"{APP_BASE_URL}/authorize"],
                 }
             },
-            scopes=SCOPES,
+            scopes=GOOGLE_SCOPES,
             redirect_uri=f"{APP_BASE_URL}/authorize"
         )
 
     @app.route('/login')
+    @limiter.limit(RATE_LIMIT_LOGIN)
     def login():
         flow = get_oauth_flow()
         authorization_url, state = flow.authorization_url(
@@ -279,8 +233,7 @@ def get_app():
         flash("Bestätigung erfolgreich. Willkommen beim Dashboard!", "success")
         return redirect(url_for('index'))
 
-    # --- Anwendungs-Routen ---
-
+    # Anwendungs-Routen
     def get_log_lines_for_file(filepath, n=50):
         if not os.path.exists(filepath):
             return ["Noch keine Logs für diesen Benutzer erstellt. Starten Sie einen Sync."]
@@ -351,6 +304,7 @@ def get_app():
 
     @app.route('/sync-now', methods=['POST'])
     @login_required
+    @limiter.limit(RATE_LIMIT_SYNC)
     def sync_now():
         is_fetch = request.headers.get('X-Requested-With') == 'fetch'
 
@@ -436,10 +390,14 @@ def get_app():
 
         try:
             service = build('calendar', 'v3', credentials=creds)
-            syncer = CalendarSyncer(service, log_callback=sync_logger, user_log_file=user_log_path)
-            syncer.log("Manueller Auftrag: Lösche alle Ereignisse im Zielkalender.")
+            syncer = CalendarSyncer(service, log_callback=sync_logger, user_log_file=user_log_path, user_id=current_user.id)
+            syncer.log_user("Zielkalender wird geleert...")
+            syncer.log(f"Wipe-Target gestartet für target={target_id}")
+            # Cache leeren, damit der nächste Sync vollständig ist
+            syncer.clear_cache()
             created_count, deleted_count = syncer.sync_to_target(target_id, [], None, None)
-            syncer.log(f"Manueller Löschauftrag abgeschlossen: {deleted_count} gelöscht, {created_count} erstellt.")
+            syncer.log_user(f"Zielkalender geleert ({deleted_count} Einträge entfernt).")
+            syncer.log(f"Wipe-Target abgeschlossen: deleted={deleted_count}")
             log_system_event(f"Zielkalender-Löschung für User {current_user.id} beendet: {deleted_count} Einträge entfernt.")
             flash(f"Zielkalender geleert ({deleted_count} Einträge entfernt).", 'success')
             return respond('ok')
@@ -455,6 +413,40 @@ def get_app():
                     lock.release()
                 except Exception:
                     pass
+
+    @app.route('/clear-cache', methods=['POST'])
+    @login_required
+    def clear_sync_cache():
+        """Löscht den Sync-Cache für einen vollständigen Re-Sync."""
+        is_fetch = request.headers.get('X-Requested-With') == 'fetch'
+
+        def respond(status='ok', message=None, http_status=200):
+            if is_fetch:
+                payload = {'status': status}
+                if status == 'ok':
+                    payload['redirect'] = url_for('index')
+                if message:
+                    payload['message'] = message
+                return jsonify(payload), http_status
+            return redirect(url_for('index'))
+
+        user_log_path = os.path.join(DATA_DIR, f"{current_user.id}.log")
+        
+        try:
+            # Wir brauchen keinen echten Service für clear_cache
+            syncer = CalendarSyncer(None, log_callback=sync_logger, user_log_file=user_log_path, user_id=current_user.id)
+            syncer.log_user("Sync-Cache wird geleert...")
+            syncer.log(f"Clear-Cache gestartet für user={current_user.id}")
+            syncer.clear_cache()
+            syncer.log_user("Cache gelöscht. Nächster Sync lädt alle Events neu.")
+            log_system_event(f"Sync-Cache für User {current_user.id} gelöscht.")
+            flash("Sync-Cache gelöscht. Der nächste Sync wird alle Events neu synchronisieren.", 'success')
+            return respond('ok')
+        except Exception as e:
+            app.logger.exception(f"Fehler beim Löschen des Sync-Cache für User {current_user.id}")
+            message = f"Fehler beim Löschen des Sync-Cache: {e}"
+            flash(message, 'error')
+            return respond('error', message, http_status=500)
 
     return app
 

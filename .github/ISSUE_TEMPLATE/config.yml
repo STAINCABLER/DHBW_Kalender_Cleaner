@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Allgemeine Fragen
+    url: https://github.com/STAINCABLER/DHBW_Calendar_Cleaner/discussions
+    about: Nutze GitHub Discussions für allgemeine Fragen
+  - name: 🔒 Sicherheitsproblem melden
+    url: https://github.com/STAINCABLER/DHBW_Calendar_Cleaner/security/advisories/new
+    about: Für Sicherheitslücken bitte KEIN Issue erstellen, sondern privat melden
+  - name: 🌐 Mehr Projekte
+    url: https://thulium-labs.de
+    about: Weitere Projekte von Tobias Maimone

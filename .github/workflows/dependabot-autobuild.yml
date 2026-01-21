@@ -1,0 +1,132 @@
+name: Dependabot Auto-Build
+
+# Wird ausgelöst, wenn ein Dependabot-PR in main gemergt wird
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  build-on-dependabot-merge:
+    # Nur ausführen wenn:
+    # 1. Der PR gemergt wurde (nicht nur geschlossen)
+    # 2. Der PR von Dependabot erstellt wurde
+    if: |
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.user.login == 'dependabot[bot]'
+    
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write      # Für Tag-Erstellung
+      packages: write      # Für GHCR Push
+      security-events: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Alle Tags laden für Versionierung
+
+      - name: Get latest version tag
+        id: get_version
+        run: |
+          # Hole den letzten Versions-Tag (z.B. v1.0.5)
+          LATEST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -n1)
+          
+          if [ -z "$LATEST_TAG" ]; then
+            # Kein Tag vorhanden, starte mit v1.0.0
+            NEW_VERSION="v1.0.0"
+          else
+            # Extrahiere Major.Minor.Patch und erhöhe Patch
+            VERSION=${LATEST_TAG#v}
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+            PATCH=$((PATCH + 1))
+            NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          fi
+          
+          echo "latest_tag=${LATEST_TAG:-none}" >> $GITHUB_OUTPUT
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "📦 Vorherige Version: ${LATEST_TAG:-keine}"
+          echo "🆕 Neue Version: ${NEW_VERSION}"
+
+      - name: Create Git tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a ${{ steps.get_version.outputs.new_version }} -m "Dependabot Update: ${{ github.event.pull_request.title }}"
+          git push origin ${{ steps.get_version.outputs.new_version }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            # Versions-Tag (z.B. v1.0.5)
+            type=raw,value=${{ steps.get_version.outputs.new_version }}
+            # Auch als "latest" taggen
+            type=raw,value=latest
+            # Branch-Name (main)
+            type=ref,event=branch
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            org.opencontainers.image.title=DHBW Calendar Cleaner
+            org.opencontainers.image.description=Dependabot Update - ${{ github.event.pull_request.title }}
+            org.opencontainers.image.version=${{ steps.get_version.outputs.new_version }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.new_version }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          vuln-type: 'os,library'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Summary
+        run: |
+          echo "## 🤖 Dependabot Auto-Build erfolgreich!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Info | Wert |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **PR** | ${{ github.event.pull_request.title }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Neue Version** | \`${{ steps.get_version.outputs.new_version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Image** | \`ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.new_version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Latest** | ✅ Auch als \`latest\` getaggt |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Pull Command" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

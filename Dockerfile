@@ -1,39 +1,55 @@
-# Verwende Python 3.11 (wie von Google empfohlen)
+# Python 3.11 Basis-Image
 FROM python:3.11-slim
 
-# Installiere Systemabhängigkeiten: 
-# cron (für den Scheduler)
-# curl (für den Healthcheck)
-# coreutils (für 'tee' zum Log-Splitting)
-RUN apt-get update && apt-get install -y cron curl coreutils && rm -rf /var/lib/apt/lists/*
+# Python-Optimierungen für Container
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Systemabhängigkeiten: cron, curl (Healthcheck), coreutils (tee)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cron \
+    curl \
+    coreutils \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Non-Root User für Sicherheit
+RUN groupadd --gid 1000 appgroup \
+    && useradd --uid 1000 --gid appgroup --shell /bin/bash --create-home appuser
 
 # Setze das Arbeitsverzeichnis
 WORKDIR /app
 
-# Kopiere die Abhängigkeitsliste und installiere sie
+# Dependencies installieren
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Kopiere den gesamten Anwendungscode
+# Anwendungscode kopieren
 COPY . .
 
-# Entferne die requirements.txt, um das Image schlanker zu machen
+# Image aufräumen
 RUN rm requirements.txt
 
-# Erstelle das Datenverzeichnis (Mount-Punkt)
-# und die Log-Datei, auf die Cron schreiben kann
+# Datenverzeichnis und Log-Datei erstellen
 RUN mkdir -p /app/data && touch /app/data/sync.log
 
-# Kopiere die Crontab-Datei und setze Berechtigungen
+# Crontab einrichten
 COPY crontab /etc/cron.d/sync-cron
 RUN chmod 0644 /etc/cron.d/sync-cron
 RUN crontab /etc/cron.d/sync-cron
 
-# Mache das Start-Skript ausführbar
+# Start-Skript ausführbar machen
 RUN chmod +x run.sh
 
-# Port für das Web-UI freigeben
+# Dateiberechtigungen setzen
+RUN chown -R appuser:appgroup /app
+
+# Web-Port
 EXPOSE 8000
 
-# Container-Startbefehl
+# Healthcheck für Container-Orchestrierung
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Container starten (cron + gunicorn)
 CMD ["./run.sh"]

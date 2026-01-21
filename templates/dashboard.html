@@ -1,198 +1,187 @@
-<!DOCTYPE html>
-<html lang="de" class="bg-slate-50">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DHBW Calendar Cleaner - Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-</head>
-<body class="text-gray-900">
+{% extends "base.html" %}
+{% from "macros.html" import flash_messages, tooltip, csrf_input %}
 
-    <div class="max-w-7xl mx-auto p-4 md:p-8">
-        <header class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-gray-200">
-            <h1 class="text-3xl font-bold">DHBW Calendar Cleaner</h1>
-            <div class="flex items-center gap-4 text-sm">
-                <span>Angemeldet als: <strong>{{ current_user.data.email }}</strong></span>
-                <a href="{{ url_for('logout') }}" 
-                   class="rounded-full bg-gray-200 px-4 py-2 font-medium text-gray-800 transition hover:bg-gray-300">
-                   Abmelden
-                </a>
-            </div>
-        </header>
+{% block html_class %}bg-slate-50{% endblock %}
+{% block title %}DHBW Calendar Cleaner - Dashboard{% endblock %}
+{% block body_class %}text-gray-900{% endblock %}
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <div class="mt-6 space-y-3">
-            {% for category, message in messages %}
-              {% set color = 'blue' if category == 'info' else ('green' if category == 'success' else 'red') %}
-              <div class="border-l-4 border-{{ color }}-400 bg-{{ color }}-50 p-4 rounded-lg">
-                  <div class="text-sm text-{{ color }}-800">
-                    {{ message }}
-                  </div>
-              </div>
-            {% endfor %}
-            </div>
-          {% endif %}
-        {% endwith %}
+{% block content %}
+<div class="max-w-7xl mx-auto p-4 md:p-8">
+    <header class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-gray-200">
+        <h1 class="text-3xl font-bold">DHBW Calendar Cleaner</h1>
+        <div class="flex items-center gap-4 text-sm">
+            <span>Angemeldet als: <strong>{{ current_user.data.email }}</strong></span>
+            <a href="{{ url_for('logout') }}" 
+               class="rounded-full bg-gray-200 px-4 py-2 font-medium text-gray-800 transition hover:bg-gray-300">
+               Abmelden
+            </a>
+        </div>
+    </header>
 
-        <main class="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-5">
-
-            <div class="lg:col-span-3 space-y-6">
-                
-                <div class="bg-neutral-100 p-6 rounded-2xl shadow-sm">
-                    <h3 class="text-xl font-semibold mb-4">Konfiguration</h3>
-                    
-                    <form action="{{ url_for('save_config') }}" method="POST" class="space-y-4">
-                        
-                        <div>
-                            <label for="source_id" class="flex items-center text-sm font-medium text-gray-700">
-                                Quell-Kalender ID
-                                <span class="group relative ml-2">
-                                    <span class="flex h-5 w-5 cursor-help items-center justify-center rounded-full bg-gray-300 text-xs font-bold text-gray-600">?</span>
-                                    <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs rounded-md bg-gray-800 px-3 py-2 text-center text-sm text-white opacity-0 transition-opacity group-hover:opacity-100">
-                                        Geben Sie die Google Kalender-ID (z.B. abc@group.calendar.google.com) oder die öffentliche .ics-URL (z.B. https://...) des Quellkalenders an.
-                                    </span>
-                                </span>
-                            </label>
-                            <input type="text" id="source_id" name="source_id" required value="{{ config.source_id }}"
-                                   class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-
-                        <div>
-                            <label for="source_timezone" class="flex items-center text-sm font-medium text-gray-700">
-                                Zeitzone der Quell-Termine
-                                <span class="group relative ml-2">
-                                    <span class="flex h-5 w-5 cursor-help items-center justify-center rounded-full bg-gray-300 text-xs font-bold text-gray-600">?</span>
-                                    <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs rounded-md bg-gray-800 px-3 py-2 text-center text-sm text-white opacity-0 transition-opacity group-hover:opacity-100">
-                                        Wählen Sie die Zeitzone, in der die Termine Ihres Quellkalenders (insb. ICS-Dateien) gemeint sind. Dies korrigiert 1-Stunden-Offsets.
-                                    </span>
-                                </span>
-                            </label>
-                            <select id="source_timezone" name="source_timezone"
-                                    class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                {% for tz in timezones %}
-                                <option value="{{ tz }}" {% if tz == config.source_timezone %}selected{% endif %}>
-                                    {{ tz }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label for="target_id" class="flex items-center text-sm font-medium text-gray-700">
-                                Ziel-Kalender ID
-                                <span class="group relative ml-2">
-                                    <span class="flex h-5 w-5 cursor-help items-center justify-center rounded-full bg-gray-300 text-xs font-bold text-gray-600">?</span>
-                                    <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs rounded-md bg-gray-800 px-3 py-2 text-center text-sm text-white opacity-0 transition-opacity group-hover:opacity-100">
-                                        Geben Sie die Kalender-ID (aus den Google Kalender-Einstellungen) des Zielkalenders an. Dieser Kalender muss Ihnen gehören und wird bei jedem Sync geleert.
-                                    </span>
-                                </span>
-                            </label>
-                            <input type="text" id="target_id" name="target_id" required value="{{ config.target_id }}"
-                                   class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-
-                        <div>
-                            <label for="regex_patterns" class="text-sm font-medium text-gray-700">RegEx Filter-Regeln (eine pro Zeile)</label>
-                            <textarea id="regex_patterns" name="regex_patterns" rows="6"
-                                      class="mt-1 block w-full rounded-lg border-gray-300 font-mono text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                      placeholder=".*Sport.*&#10;.*Tutorium.*">{{ config.regex_patterns | join('\n') }}</textarea>
-                        </div>
-
-                        <div>
-                            <button type="submit" 
-                                    class="rounded-full bg-blue-600 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                Konfiguration speichern
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                
-                <div class="bg-red-50 border-2 border-red-300 p-6 rounded-2xl shadow-sm">
-                    <h3 class="text-xl font-semibold text-red-800">Gefahrenzone</h3>
-                    <form id="delete-form" action="{{ url_for('delete_account') }}" method="POST">
-                        <p class="text-sm text-gray-700 mt-2 mb-4">
-                            Wenn Sie Ihr Konto löschen, werden Ihr Authentifizierungs-Token und Ihre gesamte Konfiguration (Quell-, Ziel- und Filterregeln) dauerhaft von unserem Server entfernt. Dies kann nicht rückgängig gemacht werden.
-                        </p>
-                        <button id="delete-step-1-btn" type="button"
-                                class="rounded-full bg-red-600 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
-                            Konto dauerhaft löschen...
-                        </button>
-                        <div id="delete-confirmation-box" class="hidden space-y-4 mt-4">
-                            <label for="email_confirmation" class="block text-sm font-medium text-gray-700">
-                                Bitte geben Sie Ihre E-Mail-Adresse (<strong>{{ current_user.data.email }}</strong>) ein, um die Löschung zu bestätigen:
-                            </label>
-                            <input type="email" id="email_confirmation" name="email_confirmation" required
-                                   class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500"
-                                   placeholder="{{ current_user.data.email }}">
-                            <button type="submit"
-                                    onclick="return confirm('Sind Sie absolut sicher? Diese Aktion kann nicht rückgängig gemacht werden.')"
-                                    class="w-full rounded-full bg-red-700 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
-                                Ich habe es verstanden, mein Konto LÖSCHEN
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-            </div> <div class="lg:col-span-2 space-y-6">
-                <div class="bg-neutral-100 p-6 rounded-2xl shadow-sm">
-                    <h3 class="text-xl font-semibold">Live-Log</h3>
-                    <p class="text-sm text-gray-600 mt-1 mb-4">Der automatische Sync läuft stündlich.</p>
-                    <div class="relative mb-4">
-                        <div class="flex rounded-full shadow-md overflow-hidden">
-                            <form action="{{ url_for('sync_now') }}" method="POST" class="flex-1">
-                                <button type="submit"
-                                        class="w-full bg-gray-600 px-6 py-2.5 text-center font-medium text-white transition hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
-                                    Manuellen Sync starten
-                                </button>
-                            </form>
-                            <button type="button" id="quick-actions-toggle"
-                                    class="bg-gray-700 px-4 text-white transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
-                                <span class="sr-only">Weitere Aktionen</span>
-                                &#9662;
-                            </button>
-                        </div>
-                        <div id="quick-actions-menu"
-                             class="hidden absolute right-0 z-10 mt-2 w-60 rounded-xl border border-gray-200 bg-white py-2 shadow-xl">
-                            <form action="{{ url_for('sync_now') }}" method="POST" data-quick-action="true">
-                                <button type="submit"
-                                        class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
-                                    Manuellen Sync jetzt ausführen
-                                </button>
-                            </form>
-                            <form action="{{ url_for('wipe_target_calendar') }}" method="POST" data-quick-action="true" data-confirm="Alle Einträge im Zielkalender werden gelöscht. Fortfahren?">
-                                <button type="submit"
-                                        class="block w-full px-4 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50">
-                                    Alle Einträge im Zielkalender löschen
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                    <div id="log-box-content" 
-                         class="h-96 overflow-y-scroll rounded-lg bg-gray-800 p-4 font-mono text-xs text-gray-200 break-words">
-                        {% for line in logs %}
-                            {{ line }}<br>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-
-        </main>
-        
-        <footer class="text-center text-xs text-gray-500 py-6 space-y-1 border-t border-gray-200 mt-8">
-            <div class="flex justify-center gap-4 mb-1">
-                <a href="{{ url_for('privacy_policy') }}" class="font-medium text-blue-600 hover:underline">Datenschutz</a>
-                <a href="{{ url_for('terms_of_service') }}" class="font-medium text-blue-600 hover:underline">Nutzungsbedingungen</a>
-            </div>
-            <p>
-                Mehr Projekte findest du bei 
-                <a href="https://thulium-labs.de" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">thulium-labs.de</a>.
-            </p>
-            <p>Made by Tobias Maimone</p>
-        </footer>
+    <div class="mt-6">
+        {{ flash_messages() }}
     </div>
 
+    <main class="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-5">
+
+        <div class="lg:col-span-3 space-y-6">
+            
+            <div class="bg-neutral-100 p-6 rounded-2xl shadow-sm">
+                <h3 class="text-xl font-semibold mb-4">Konfiguration</h3>
+                
+                <form action="{{ url_for('save_config') }}" method="POST" class="space-y-4">
+                    {{ csrf_input() }}
+                    
+                    <div>
+                        <label for="source_id" class="flex items-center text-sm font-medium text-gray-700">
+                            Quell-Kalender ID
+                            {{ tooltip('Geben Sie die Google Kalender-ID (z.B. abc@group.calendar.google.com) oder die öffentliche .ics-URL (z.B. https://...) des Quellkalenders an.') }}
+                        </label>
+                        <input type="text" id="source_id" name="source_id" required value="{{ config.source_id }}"
+                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <div>
+                        <label for="source_timezone" class="flex items-center text-sm font-medium text-gray-700">
+                            Zeitzone der Quell-Termine
+                            {{ tooltip('Wählen Sie die Zeitzone, in der die Termine Ihres Quellkalenders (insb. ICS-Dateien) gemeint sind. Dies korrigiert 1-Stunden-Offsets.') }}
+                        </label>
+                        <select id="source_timezone" name="source_timezone"
+                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            {% for tz in timezones %}
+                            <option value="{{ tz }}" {% if tz == config.source_timezone %}selected{% endif %}>
+                                {{ tz }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="target_id" class="flex items-center text-sm font-medium text-gray-700">
+                            Ziel-Kalender ID
+                            {{ tooltip('Geben Sie die Kalender-ID (aus den Google Kalender-Einstellungen) des Zielkalenders an. Dieser Kalender muss Ihnen gehören und wird bei jedem Sync geleert.') }}
+                        </label>
+                        <input type="text" id="target_id" name="target_id" required value="{{ config.target_id }}"
+                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+
+                    <div>
+                        <label for="regex_patterns" class="text-sm font-medium text-gray-700">RegEx Filter-Regeln (eine pro Zeile)</label>
+                        <textarea id="regex_patterns" name="regex_patterns" rows="6"
+                                  class="mt-1 block w-full rounded-lg border-gray-300 font-mono text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                  placeholder=".*Sport.*&#10;.*Tutorium.*">{{ config.regex_patterns | join('\n') }}</textarea>
+                    </div>
+
+                    <div>
+                        <button type="submit" 
+                                class="rounded-full bg-blue-600 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            Konfiguration speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="bg-red-50 border-2 border-red-300 p-6 rounded-2xl shadow-sm">
+                <h3 class="text-xl font-semibold text-red-800">Gefahrenzone</h3>
+                <form id="delete-form" action="{{ url_for('delete_account') }}" method="POST">
+                    {{ csrf_input() }}
+                    <p class="text-sm text-gray-700 mt-2 mb-4">
+                        Wenn Sie Ihr Konto löschen, werden Ihr Authentifizierungs-Token und Ihre gesamte Konfiguration (Quell-, Ziel- und Filterregeln) dauerhaft von unserem Server entfernt. Dies kann nicht rückgängig gemacht werden.
+                    </p>
+                    <button id="delete-step-1-btn" type="button"
+                            class="rounded-full bg-red-600 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                        Konto dauerhaft löschen...
+                    </button>
+                    <div id="delete-confirmation-box" class="hidden space-y-4 mt-4">
+                        <label for="email_confirmation" class="block text-sm font-medium text-gray-700">
+                            Bitte geben Sie Ihre E-Mail-Adresse (<strong>{{ current_user.data.email }}</strong>) ein, um die Löschung zu bestätigen:
+                        </label>
+                        <input type="email" id="email_confirmation" name="email_confirmation" required
+                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500"
+                               placeholder="{{ current_user.data.email }}">
+                        <button type="submit"
+                                onclick="return confirm('Sind Sie absolut sicher? Diese Aktion kann nicht rückgängig gemacht werden.')"
+                                class="w-full rounded-full bg-red-700 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                            Ich habe es verstanden, mein Konto LÖSCHEN
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-neutral-100 p-6 rounded-2xl shadow-sm">
+                <h3 class="text-xl font-semibold">Live-Log</h3>
+                <p class="text-sm text-gray-600 mt-1 mb-4">Der automatische Sync läuft stündlich.</p>
+                <div class="relative mb-4">
+                    <div class="flex rounded-full shadow-md overflow-hidden">
+                        <form action="{{ url_for('sync_now') }}" method="POST" class="flex-1">
+                            {{ csrf_input() }}
+                            <button type="submit"
+                                    class="w-full bg-gray-600 px-6 py-2.5 text-center font-medium text-white transition hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                                Manuellen Sync starten
+                            </button>
+                        </form>
+                        <button type="button" id="quick-actions-toggle"
+                                class="bg-gray-700 px-4 text-white transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                            <span class="sr-only">Weitere Aktionen</span>
+                            &#9662;
+                        </button>
+                    </div>
+                    <div id="quick-actions-menu"
+                         class="hidden absolute right-0 z-10 mt-2 w-60 rounded-xl border border-gray-200 bg-white py-2 shadow-xl">
+                        <form action="{{ url_for('sync_now') }}" method="POST" data-quick-action="true">
+                            {{ csrf_input() }}
+                            <button type="submit"
+                                    class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
+                                Manuellen Sync jetzt ausführen
+                            </button>
+                        </form>
+                        <form action="{{ url_for('clear_sync_cache') }}" method="POST" data-quick-action="true" data-confirm="Der Sync-Cache wird geleert. Der nächste Sync synchronisiert alle Events neu. Fortfahren?">
+                            {{ csrf_input() }}
+                            <button type="submit"
+                                    class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
+                                Sync-Cache leeren (Full-Sync erzwingen)
+                            </button>
+                        </form>
+                        <form action="{{ url_for('wipe_target_calendar') }}" method="POST" data-quick-action="true" data-confirm="Alle Einträge im Zielkalender werden gelöscht. Fortfahren?">
+                            {{ csrf_input() }}
+                            <button type="submit"
+                                    class="block w-full px-4 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50">
+                                Alle Einträge im Zielkalender löschen
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <div id="log-box-content" 
+                     class="h-96 overflow-y-scroll rounded-lg bg-gray-800 p-4 font-mono text-xs text-gray-200 break-words">
+                    {% for line in logs %}
+                        {{ line }}<br>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+{% endblock %}
+
+{% block footer %}
+<footer class="text-center text-xs text-gray-500 py-6 space-y-1 border-t border-gray-200 mt-8 max-w-7xl mx-auto">
+    <div class="flex justify-center gap-4 mb-1">
+        <a href="{{ url_for('privacy_policy') }}" class="font-medium text-blue-600 hover:underline">Datenschutz</a>
+        <a href="{{ url_for('terms_of_service') }}" class="font-medium text-blue-600 hover:underline">Nutzungsbedingungen</a>
+    </div>
+    <p>
+        Mehr Projekte findest du bei 
+        <a href="https://thulium-labs.de" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">thulium-labs.de</a>.
+    </p>
+    <p>Made by Tobias Maimone</p>
+</footer>
+{% endblock %}
+
+{% block scripts %}
 <script>
     (function() {
         const quickToggle = document.getElementById('quick-actions-toggle');
@@ -289,13 +278,7 @@
                     }
                     const data = await response.json();
                     logBox.innerHTML = data.logs.map(line => `<span>${line}</span>`).join('<br>');
-                    // Immer nach unten scrollen, damit neue Einträge sichtbar sind
-                    try {
-                        // Verwende direkt scrollTop für breite Kompatibilität
-                        logBox.scrollTop = logBox.scrollHeight;
-                    } catch (e) {
-                        // Falls etwas schiefgeht, ignoriere es (nur kosmetisch)
-                    }
+                    logBox.scrollTop = logBox.scrollHeight;
                 } catch (e) {
                     logBox.innerHTML = '<span class="text-red-300">Verbindungsfehler beim Laden der Logs: ' + e + '</span>';
                     isPolling = false;
@@ -319,6 +302,4 @@
         }
     })();
 </script>
-
-</body>
-</html>
+{% endblock %}

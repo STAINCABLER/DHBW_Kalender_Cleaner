@@ -1,0 +1,34 @@
+{# Template-Makros #}
+
+{# Flash-Messages #}
+{% macro flash_messages() %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="space-y-3">
+    {% for category, message in messages %}
+      {% set color = 'blue' if category == 'info' else ('green' if category == 'success' else 'red') %}
+      <div class="border-l-4 border-{{ color }}-400 bg-{{ color }}-50 p-4 rounded-lg">
+          <div class="text-sm text-{{ color }}-800">
+            {{ message }}
+          </div>
+      </div>
+    {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+{% endmacro %}
+
+{# Tooltip #}
+{% macro tooltip(text) %}
+<span class="group relative ml-2">
+    <span class="flex h-5 w-5 cursor-help items-center justify-center rounded-full bg-gray-300 text-xs font-bold text-gray-600">?</span>
+    <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs rounded-md bg-gray-800 px-3 py-2 text-center text-sm text-white opacity-0 transition-opacity group-hover:opacity-100 z-10">
+        {{ text }}
+    </span>
+</span>
+{% endmacro %}
+
+{# CSRF-Token #}
+{% macro csrf_input() %}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{% endmacro %}

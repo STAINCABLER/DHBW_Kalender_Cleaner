@@ -1,8 +1,34 @@
+# ===== Git & GitHub =====
+.git/
 .github/
-Dockerfile
-.env.example
-.dockerignore
 .gitignore
+
+# ===== Docker =====
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# ===== Dokumentation =====
+*.md
+!templates/*.md
+LICENSE
+
+# ===== Entwicklung =====
 .vscode/
-README.md
-docker-compose.yml
+.idea/
+.env
+.env.example
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# ===== Test & Beispieldaten =====
+*.ics
+*.log
+calendar-data/
+research.md
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
