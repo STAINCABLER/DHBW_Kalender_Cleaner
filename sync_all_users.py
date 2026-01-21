@@ -3,12 +3,10 @@ import json
 import glob
 import sys
 import argparse
-import time
 from datetime import datetime
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request as GoogleRequest
 from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 from filelock import FileLock, Timeout
 
 # Importiere die geteilte Logik und Konfiguration
@@ -127,7 +125,7 @@ def main():
             if lock_acquired and lock and lock.is_locked:
                 try:
                     lock.release()
-                except:
+                except Exception:
                     pass
 
     log("Sync-Lauf beendet.")

@@ -7,7 +7,6 @@ import arrow
 import time
 from datetime import datetime, timedelta, timezone
 from googleapiclient.errors import HttpError
-from googleapiclient.http import BatchHttpRequest
 from ics import Calendar
 
 # Cache-Verzeichnis für ICS-ETags und Event-Hashes
@@ -161,7 +160,7 @@ class CalendarSyncer:
             self.log(f"Google API: {len(all_events)} Events abgerufen (über {len(all_events)//250 + 1} Seiten)")
             return all_events
         except HttpError as error:
-            self.log_user(f"Fehler beim Abrufen der Google-Ereignisse.")
+            self.log_user("Fehler beim Abrufen der Google-Ereignisse.")
             self.log(f"Google API Error: {error}")
             return []
 
@@ -341,8 +340,6 @@ class CalendarSyncer:
         
         deleted_count = 0
         created_count = 0
-        updated_count = 0
-        failed_count = 0
         
         # Events löschen (Batch API)
         events_to_delete_ids = []

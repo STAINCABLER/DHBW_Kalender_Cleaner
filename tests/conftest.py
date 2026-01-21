@@ -5,7 +5,6 @@ Gemeinsame Pytest-Fixtures für alle Testmodule.
 import os
 import sys
 import tempfile
-import json
 import shutil
 from pathlib import Path
 
@@ -16,14 +15,14 @@ _SESSION_TEMP_DIR = tempfile.mkdtemp(prefix='dhbw_calendar_test_')
 os.environ['DATA_DIR'] = _SESSION_TEMP_DIR
 
 # Auch SECRET_KEY muss früh gesetzt werden
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet  # noqa: E402
 _TEST_SECRET_KEY = Fernet.generate_key().decode()
 os.environ['SECRET_KEY'] = _TEST_SECRET_KEY
 os.environ['APP_BASE_URL'] = 'http://localhost:8000'
 os.environ['GOOGLE_CLIENT_ID'] = 'test-client-id.apps.googleusercontent.com'
 os.environ['GOOGLE_CLIENT_SECRET'] = 'test-client-secret'
 
-import pytest
+import pytest  # noqa: E402
 
 # Projektverzeichnis zum Python-Pfad hinzufügen
 sys.path.insert(0, str(Path(__file__).parent.parent))
