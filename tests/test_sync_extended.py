@@ -2,9 +2,7 @@
 Erweiterte Tests für sync_logic.py und sync_all_users.py.
 """
 
-from unittest.mock import MagicMock, patch, Mock
-from datetime import datetime, timedelta
-import responses
+from unittest.mock import MagicMock
 
 
 class TestSyncAllUsersModule:
@@ -56,7 +54,7 @@ class TestCalendarSyncerInit:
         sync_logic.CACHE_DIR = str(cache_dir)
         
         mock_service = MagicMock()
-        syncer = CalendarSyncer(mock_service, user_id='test-user')
+        CalendarSyncer(mock_service, user_id='test-user')
         
         assert cache_dir.exists()
     
@@ -65,7 +63,9 @@ class TestCalendarSyncerInit:
         from sync_logic import CalendarSyncer
         
         log_messages = []
-        custom_logger = lambda msg: log_messages.append(msg)
+        
+        def custom_logger(msg):
+            log_messages.append(msg)
         
         mock_service = MagicMock()
         syncer = CalendarSyncer(mock_service, log_callback=custom_logger)
