@@ -1,5 +1,7 @@
 import os
+import re
 import logging
+import subprocess
 import pytz
 import markdown
 from datetime import datetime
@@ -156,6 +158,7 @@ def get_app():
         
         try:
             from google.oauth2 import id_token
+            from google.auth.transport.requests import Request as GoogleRequest
             id_info = id_token.verify_oauth2_token(
                 creds.id_token, GoogleRequest(), GOOGLE_CLIENT_ID
             )
