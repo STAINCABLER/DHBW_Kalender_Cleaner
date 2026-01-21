@@ -333,12 +333,13 @@ def get_app():
                 'User-Agent': 'DHBW-Calendar-Cleaner/1.0 (https://github.com/STAINCABLER/DHBW_Calendar_Cleaner)',
                 'Accept': 'text/calendar, */*'
             }
-            response = req.get(url, timeout=15, stream=True, headers=headers, allow_redirects=True)
+            response = req.get(url, timeout=15, headers=headers, allow_redirects=True)
             response.raise_for_status()
             
             # Lese die ersten 4KB um sicherzustellen dass wir VCALENDAR finden
             # (manche ICS-Dateien haben lange Header mit Kommentaren)
-            first_chunk = response.raw.read(4096).decode('utf-8', errors='ignore')
+            # Nutze response.text statt raw.read() damit gzip automatisch dekomprimiert wird
+            first_chunk = response.text[:4096]
             
             if 'BEGIN:VCALENDAR' not in first_chunk:
                 # Prüfe ob es sich um eine HTML-Seite handelt (Login-Redirect)
