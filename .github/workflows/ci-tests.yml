@@ -104,6 +104,8 @@ jobs:
         with:
           context: .
           push: false
+          load: true  # Lädt das Image in den lokalen Docker-Daemon für den Test
+          platforms: linux/amd64  # load: true erfordert Single-Platform
           tags: dhbw-calendar-cleaner:test
           cache-from: type=gha
           cache-to: type=gha,mode=max

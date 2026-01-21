@@ -5,9 +5,11 @@
 - Tailored for multi-user Google OAuth, so flows, storage, and locking assume per-user isolation rather than global settings.
 
 ## Runtime Architecture
-- `run.sh` snapshots env vars into `/app/cron_env`, starts `cron`, then launches `gunicorn --workers 2 --bind 0.0.0.0:8000 web_server:get_app()`.
+- `run.sh` starts Supercronic (cron-Ersatz für Container) im Hintergrund, dann `gunicorn --workers 2 --bind 0.0.0.0:8000 web_server:get_app()`.
+- Supercronic erbt automatisch alle Umgebungsvariablen und läuft als non-root User (keine `/app/cron_env` Datei mehr nötig).
 - `crontab` schedules `/app/sync_all_users.py` every hour at minute 0, redirecting output into `/app/data/system.log`; manual syncs reuse the same script with `--user`.
 - Web layer expects an external reverse proxy terminating TLS and calling the service at port 8000 with `APP_BASE_URL` matching the public origin.
+- Container läuft vollständig als `appuser` (UID 1000) – keine Root-Rechte erforderlich.
 
 ## Data & Persistence
 - Volume-mounted `/app/data` stores `<user-id>.json` configs plus `<user-id>.log` tails; JSON holds `email`, `source_id`, `target_id`, `regex_patterns`, `source_timezone`, `refresh_token_encrypted`, `has_accepted_disclaimer`.

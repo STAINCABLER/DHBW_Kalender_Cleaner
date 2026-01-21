@@ -11,23 +11,44 @@ docker-compose*.yml
 # ===== Dokumentation =====
 *.md
 !templates/*.md
+!content/*.md
 LICENSE
 
 # ===== Entwicklung =====
 .vscode/
 .idea/
 .env
-.env.example
+.env.*
 venv/
+.venv/
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 
-# ===== Test & Beispieldaten =====
+# ===== Test & Coverage =====
+tests/
+pytest.ini
+.pytest_cache/
+.coverage
+.coveragerc
+coverage.xml
+htmlcov/
+
+# ===== Beispiel- und Testdaten =====
 *.ics
 *.log
 calendar-data/
 research.md
+
+# ===== Secrets & Credentials (WICHTIG!) =====
+*.pem
+*.key
+*.crt
+*.p12
+*credentials*.json
+*secret*
+*token*
 
 # ===== OS =====
 .DS_Store
