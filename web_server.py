@@ -36,7 +36,7 @@ def get_app():
     app.secret_key = SECRET_KEY
     
     # CSRF-Schutz aktivieren
-    csrf = CSRFProtect(app)
+    CSRFProtect(app)
     
     # Security Headers
     csp = {
