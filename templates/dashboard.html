@@ -68,7 +68,7 @@
                     <div>
                         <label for="regex_patterns" class="text-sm font-medium text-gray-700">RegEx Filter-Regeln (eine pro Zeile)</label>
                         <textarea id="regex_patterns" name="regex_patterns" rows="6"
-                                  class="mt-1 block w-full rounded-lg border-gray-300 font-mono text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                  class="mt-1 block w-full rounded-lg border-gray-300 font-mono text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3"
                                   placeholder=".*Sport.*&#10;.*Tutorium.*">{{ config.regex_patterns | join('\n') }}</textarea>
                     </div>
 
@@ -99,8 +99,7 @@
                         <input type="email" id="email_confirmation" name="email_confirmation" required
                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500"
                                placeholder="{{ current_user.data.email }}">
-                        <button type="submit"
-                                onclick="return confirm('Sind Sie absolut sicher? Diese Aktion kann nicht rückgängig gemacht werden.')"
+                        <button type="submit" id="delete-final-btn"
                                 class="w-full rounded-full bg-red-700 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
                             Ich habe es verstanden, mein Konto LÖSCHEN
                         </button>
@@ -273,7 +272,7 @@
                 try {
                     const response = await fetch("{{ url_for('get_logs') }}");
                     if (!response.ok) {
-                        logBox.innerHTML = '<span class="text-red-300">Fehler beim Laden der Logs: ' + response.statusText + '</span>';
+                        logBox.innerHTML = '<span class="text-red-300">Fehler beim Laden der Logs (HTTP ' + response.status + ')</span>';
                         return;
                     }
                     const data = await response.json();
@@ -291,15 +290,76 @@
         // --- Konto löschen Logik ---
         const deleteBtn = document.getElementById('delete-step-1-btn');
         const deleteConfirmBox = document.getElementById('delete-confirmation-box');
+        const deleteForm = document.getElementById('delete-form');
+        const deleteFinalBtn = document.getElementById('delete-final-btn');
+        const emailInput = document.getElementById('email_confirmation');
+        const userEmail = "{{ current_user.data.email }}";
 
         if (deleteBtn && deleteConfirmBox) {
             deleteBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 deleteBtn.classList.add('hidden'); 
                 deleteConfirmBox.classList.remove('hidden');
-                document.getElementById('email_confirmation').focus();
+                emailInput.focus();
             });
         }
+
+        if (deleteFinalBtn && deleteForm && emailInput) {
+            deleteForm.addEventListener('submit', function(e) {
+                // Prüfe ob E-Mail eingegeben wurde
+                const enteredEmail = emailInput.value.trim();
+                if (!enteredEmail) {
+                    e.preventDefault();
+                    alert('Bitte geben Sie Ihre E-Mail-Adresse ein, um die Löschung zu bestätigen.');
+                    emailInput.focus();
+                    return false;
+                }
+                
+                // Prüfe ob E-Mail korrekt ist
+                if (enteredEmail !== userEmail) {
+                    e.preventDefault();
+                    alert('Die eingegebene E-Mail-Adresse stimmt nicht überein.');
+                    emailInput.focus();
+                    return false;
+                }
+                
+                // Zeige finale Bestätigung
+                if (!confirm('Sind Sie absolut sicher? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+                    e.preventDefault();
+                    return false;
+                }
+                
+                return true;
+            });
+        }
+
+        // --- Tooltip Klick-Logik ---
+        document.querySelectorAll('.tooltip-trigger').forEach(function(trigger) {
+            trigger.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Schließe alle anderen Tooltips
+                document.querySelectorAll('.tooltip-content').forEach(function(tip) {
+                    if (tip !== trigger.nextElementSibling) {
+                        tip.classList.add('hidden');
+                    }
+                });
+                
+                // Toggle diesen Tooltip
+                const tooltip = trigger.nextElementSibling;
+                tooltip.classList.toggle('hidden');
+            });
+        });
+        
+        // Schließe Tooltips bei Klick außerhalb
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.tooltip-wrapper')) {
+                document.querySelectorAll('.tooltip-content').forEach(function(tip) {
+                    tip.classList.add('hidden');
+                });
+            }
+        });
     })();
 </script>
 {% endblock %}

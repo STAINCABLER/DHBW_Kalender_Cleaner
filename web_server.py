@@ -14,6 +14,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from werkzeug.middleware.proxy_fix import ProxyFix
 from filelock import FileLock, Timeout
 
@@ -213,17 +214,31 @@ def get_app():
         
         try:
             user_data_file = current_user.data_file
-            user_log_file = os.path.join(DATA_DIR, f"{current_user.id}.log") 
+            user_log_file = os.path.join(DATA_DIR, f"{current_user.id}.log")
+            user_lock_file = os.path.join(DATA_DIR, f"{current_user.id}.sync.lock")
+            cache_dir = os.path.join(DATA_DIR, '.cache')
             user_id_log = current_user.id
             user_email_log = current_user.data.get('email', 'N/A')
 
             logout_user() 
 
+            # Konfigurationsdatei löschen
             if os.path.exists(user_data_file):
                 os.remove(user_data_file)
             
+            # Log-Datei löschen
             if os.path.exists(user_log_file):
                 os.remove(user_log_file)
+            
+            # Lock-Datei löschen
+            if os.path.exists(user_lock_file):
+                os.remove(user_lock_file)
+            
+            # Cache-Dateien löschen
+            for cache_type in ['ics', 'events']:
+                cache_file = os.path.join(cache_dir, f"{user_id_log}_{cache_type}.json")
+                if os.path.exists(cache_file):
+                    os.remove(cache_file)
 
             app.logger.info(f"BENUTZERKONTO GELÖSCHT: {user_email_log} (ID: {user_id_log})")
             
@@ -247,9 +262,22 @@ def get_app():
         if not os.path.exists(filepath):
             return ["Noch keine Logs für diesen Benutzer erstellt. Starten Sie einen Sync."]
         try:
-            with open(filepath, 'r') as f:
-                lines = f.readlines()
-                return [line.strip() for line in lines[-n:]]
+            # Effizientes Lesen der letzten n Zeilen (ohne gesamte Datei zu laden)
+            with open(filepath, 'rb') as f:
+                # Gehe ans Ende der Datei
+                f.seek(0, 2)
+                file_size = f.tell()
+                
+                if file_size == 0:
+                    return ["Log-Datei ist leer."]
+                
+                # Lese max 64KB vom Ende (sollte für 50 Zeilen reichen)
+                read_size = min(file_size, 65536)
+                f.seek(-read_size, 2)
+                content = f.read().decode('utf-8', errors='ignore')
+                
+                lines = content.splitlines()
+                return [line.strip() for line in lines[-n:] if line.strip()]
         except Exception as e:
             return [f"Fehler beim Lesen der Log-Datei: {e}"]
 
@@ -276,11 +304,60 @@ def get_app():
                                logs=initial_logs,
                                timezones=pytz.common_timezones)
 
+    def _validate_calendar_access(calendar_id, calendar_name):
+        """Prüft ob der User Zugriff auf den Kalender hat. Gibt Fehlermeldung oder None zurück."""
+        try:
+            creds = current_user.get_credentials()
+            if not creds:
+                return f"{calendar_name}: Keine gültigen Anmeldedaten. Bitte erneut einloggen."
+            
+            service = build('calendar', 'v3', credentials=creds)
+            # Versuche Kalender-Metadaten abzurufen
+            service.calendars().get(calendarId=calendar_id).execute()
+            return None  # Kein Fehler
+        except HttpError as e:
+            if e.resp.status == 404:
+                return f"{calendar_name}: Kalender '{calendar_id}' nicht gefunden. Bitte ID prüfen."
+            elif e.resp.status == 403:
+                return f"{calendar_name}: Kein Zugriff auf '{calendar_id}'. Bitte Freigabe prüfen."
+            else:
+                return f"{calendar_name}: API-Fehler ({e.resp.status}). Bitte ID prüfen."
+        except Exception as e:
+            return f"{calendar_name}: Validierung fehlgeschlagen ({e})."
+
+    def _validate_ics_url(url):
+        """Prüft ob die ICS-URL erreichbar ist und gültiges ICS enthält. Gibt Fehlermeldung oder None zurück."""
+        import requests as req
+        try:
+            response = req.get(url, timeout=10, stream=True)
+            response.raise_for_status()
+            
+            # Prüfe Content-Type (optional, da manche Server falsch konfiguriert sind)
+            content_type = response.headers.get('Content-Type', '')
+            
+            # Lese nur die ersten 1000 Bytes um zu prüfen ob es ICS ist
+            first_chunk = response.raw.read(1000).decode('utf-8', errors='ignore')
+            
+            if 'BEGIN:VCALENDAR' not in first_chunk:
+                return f"Quellkalender: Die URL liefert keine gültige ICS-Datei (kein VCALENDAR gefunden)."
+            
+            return None  # Kein Fehler
+        except req.exceptions.Timeout:
+            return "Quellkalender: Die URL ist nicht erreichbar (Timeout nach 10 Sekunden)."
+        except req.exceptions.SSLError:
+            return "Quellkalender: SSL-Zertifikatsfehler. Bitte HTTPS-URL prüfen."
+        except req.exceptions.ConnectionError:
+            return "Quellkalender: Verbindung fehlgeschlagen. Bitte URL prüfen."
+        except req.exceptions.HTTPError as e:
+            return f"Quellkalender: HTTP-Fehler {e.response.status_code}. Bitte URL prüfen."
+        except Exception as e:
+            return f"Quellkalender: Validierung fehlgeschlagen ({e})."
+
     @app.route('/save', methods=['POST'])
     @login_required
     def save_config():
-        source_id = request.form.get('source_id')
-        target_id = request.form.get('target_id')
+        source_id = request.form.get('source_id', '').strip()
+        target_id = request.form.get('target_id', '').strip()
         regex_raw = request.form.get('regex_patterns', '')
         source_timezone = request.form.get('source_timezone') # NEU
         
@@ -304,6 +381,27 @@ def get_app():
         if not source_id or not target_id:
             flash("Quell-ID und Ziel-ID sind Pflichtfelder.", 'error')
             return redirect(url_for('index'))
+        
+        # Validierung der Ziel-Kalender-ID
+        validation_error = _validate_calendar_access(target_id, 'Zielkalender')
+        if validation_error:
+            flash(validation_error, 'error')
+            return redirect(url_for('index'))
+        
+        # Validierung der Quell-ID
+        is_ics = source_id.startswith('http://') or source_id.startswith('https://')
+        if is_ics:
+            # ICS-URL validieren
+            validation_error = _validate_ics_url(source_id)
+            if validation_error:
+                flash(validation_error, 'error')
+                return redirect(url_for('index'))
+        else:
+            # Google Calendar ID validieren
+            validation_error = _validate_calendar_access(source_id, 'Quellkalender')
+            if validation_error:
+                flash(validation_error, 'error')
+                return redirect(url_for('index'))
             
         current_user.set_config(source_id, target_id, regex_patterns, source_timezone)
         
@@ -404,7 +502,9 @@ def get_app():
             syncer.log(f"Wipe-Target gestartet für target={target_id}")
             # Cache leeren, damit der nächste Sync vollständig ist
             syncer.clear_cache()
-            created_count, deleted_count = syncer.sync_to_target(target_id, [], None, None)
+            # Leere Liste synchronisieren = alle Events löschen
+            source_id = config.get('source_id')
+            created_count, deleted_count = syncer.sync_to_target(target_id, [], None, None, source_id=source_id)
             syncer.log_user(f"Zielkalender geleert ({deleted_count} Einträge entfernt).")
             syncer.log(f"Wipe-Target abgeschlossen: deleted={deleted_count}")
             log_system_event(f"Zielkalender-Löschung für User {current_user.id} beendet: {deleted_count} Einträge entfernt.")

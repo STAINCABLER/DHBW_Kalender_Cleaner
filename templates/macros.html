@@ -18,12 +18,15 @@
 {% endwith %}
 {% endmacro %}
 
-{# Tooltip #}
+{# Tooltip - Click to toggle #}
 {% macro tooltip(text) %}
-<span class="group relative ml-2">
-    <span class="flex h-5 w-5 cursor-help items-center justify-center rounded-full bg-gray-300 text-xs font-bold text-gray-600">?</span>
-    <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs rounded-md bg-gray-800 px-3 py-2 text-center text-sm text-white opacity-0 transition-opacity group-hover:opacity-100 z-10">
+<span class="tooltip-wrapper relative ml-2 inline-block">
+    <button type="button" class="tooltip-trigger flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-gray-300 text-xs font-bold text-gray-600 hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        ?
+    </button>
+    <span class="tooltip-content hidden absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 rounded-md bg-gray-800 px-3 py-2 text-center text-sm text-white shadow-lg z-50">
         {{ text }}
+        <span class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></span>
     </span>
 </span>
 {% endmacro %}

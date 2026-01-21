@@ -43,10 +43,42 @@ class CalendarSyncer:
         self.system_log(message)
         if self.user_log_file:
             try:
+                # Log-Rotation: Datei kürzen wenn älter als 30 Tage
+                self._rotate_log_if_needed()
+                
                 with open(self.user_log_file, 'a') as f:
-                    f.write(message + '\n')
+                    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
+                    f.write(f"[{timestamp}] {message}\n")
             except Exception as e:
                 self.system_log(f"!!! LOG-FEHLER: Konnte nicht in User-Log schreiben: {e}")
+
+    def _rotate_log_if_needed(self):
+        """Löscht Log-Einträge älter als 30 Tage."""
+        if not self.user_log_file or not os.path.exists(self.user_log_file):
+            return
+            
+        try:
+            # Prüfe Dateialter
+            file_stat = os.stat(self.user_log_file)
+            file_age_days = (datetime.now().timestamp() - file_stat.st_mtime) / 86400
+            
+            # Wenn Datei älter als 30 Tage, komplett neu starten
+            if file_age_days > 30:
+                os.remove(self.user_log_file)
+                self.system_log(f"Log-Rotation: {self.user_log_file} gelöscht (älter als 30 Tage)")
+                return
+            
+            # Alternativ: Bei großen Dateien (>1MB) die ältesten Zeilen entfernen
+            if file_stat.st_size > 1_000_000:  # 1 MB
+                with open(self.user_log_file, 'r') as f:
+                    lines = f.readlines()
+                # Behalte nur die letzten 1000 Zeilen
+                if len(lines) > 1000:
+                    with open(self.user_log_file, 'w') as f:
+                        f.writelines(lines[-1000:])
+                    self.system_log(f"Log-Rotation: {self.user_log_file} auf 1000 Zeilen gekürzt")
+        except Exception as e:
+            self.system_log(f"Log-Rotation Fehler: {e}")
 
     # Cache-Funktionen
     
@@ -91,12 +123,30 @@ class CalendarSyncer:
         return hashlib.md5(hash_input.encode()).hexdigest()
     
     def _get_event_key(self, event):
-        """Erstellt einen eindeutigen Schlüssel für ein Event (für Delta-Sync)."""
+        """Erstellt einen eindeutigen Schlüssel für ein Event (für Delta-Sync).
+        
+        Priorisierung:
+        1. Wenn UID vorhanden (ICS) oder recurringEventId (Google): Verwende diese + Start
+           - Stabil auch wenn Location/Beschreibung sich ändert
+           - Start ist nötig um Instanzen wiederkehrender Events zu unterscheiden
+        2. Fallback: Start + Ende + Titel + Ort
+           - Für Events ohne UID
+        """
+        # Primär: UID-basierter Key (stabil bei Änderungen)
+        uid = event.get('uid') or event.get('recurringEventId')
+        if uid:
+            start = event.get('start', {})
+            start_str = start.get('dateTime') or start.get('date') or ''
+            return f"uid:{uid}|{start_str}"
+        
+        # Fallback: Zeitbasierter Key
         start = event.get('start', {})
+        end = event.get('end', {})
         start_str = start.get('dateTime') or start.get('date') or ''
+        end_str = end.get('dateTime') or end.get('date') or ''
         summary = event.get('summary', '')
-        # Kombination aus Start-Zeit und Titel als Key
-        return f"{start_str}|{summary}"
+        location = event.get('location', '')
+        return f"{start_str}|{end_str}|{summary}|{location}"
 
     def standardize_event(self, event_data, source_type):
         if source_type == 'google':
@@ -106,6 +156,8 @@ class CalendarSyncer:
                 'location': event_data.get('location', ''),
                 'start': event_data.get('start'),
                 'end': event_data.get('end'),
+                # Für wiederkehrende Events: recurringEventId als stabiler Identifier
+                'recurringEventId': event_data.get('recurringEventId'),
             }
         elif source_type == 'ics':
             # Diese Funktion erhält jetzt zeitzonenbewusste 'arrow'-Objekte
@@ -120,12 +172,19 @@ class CalendarSyncer:
                 # isoformat() enthält jetzt den korrekten Offset (z.B. +01:00)
                 start['dateTime'] = start_arrow.isoformat()
                 end['dateTime'] = end_arrow.isoformat()
+            
+            # UID für stabile Identifikation (wichtig bei wiederkehrenden Events)
+            event_uid = None
+            if hasattr(event_data, 'uid') and event_data.uid:
+                event_uid = str(event_data.uid)
+            
             return {
                 'summary': event_data.name or 'Kein Titel',
                 'description': event_data.description or '',
                 'location': event_data.location or '',
                 'start': start,
                 'end': end,
+                'uid': event_uid,
             }
 
     def fetch_google_events(self, calendar_id, time_min=None, time_max=None):
@@ -200,6 +259,7 @@ class CalendarSyncer:
                         'etag': new_etag,
                         'last_modified': new_last_modified,
                         'content': ics_content,
+                        'source_url': url,  # URL speichern für Cache-Invalidierung
                         'timestamp': datetime.now(timezone.utc).isoformat()
                     })
                     self.log(f"ICS: Cache aktualisiert (ETag={new_etag is not None})")
@@ -222,11 +282,21 @@ class CalendarSyncer:
                         continue
                     seen_uids.add(event_uid)
 
-                # Zeitzonen-Korrektur
+                # Zeitzonen-Korrektur: Nur wenn Event keine Zeitzone hat
                 start_arrow = event.begin
                 end_arrow = event.end
-                start_arrow = arrow.get(start_arrow.naive, tzinfo=source_timezone)
-                end_arrow = arrow.get(end_arrow.naive, tzinfo=source_timezone)
+                
+                # Prüfe ob das Event bereits eine Zeitzone hat
+                start_has_tz = hasattr(start_arrow, 'tzinfo') and start_arrow.tzinfo is not None
+                end_has_tz = hasattr(end_arrow, 'tzinfo') and end_arrow.tzinfo is not None
+                
+                if not start_has_tz or str(start_arrow.tzinfo) == 'tzutc()':
+                    # Naive Zeit oder UTC-Float: Wende User-Zeitzone an
+                    start_arrow = arrow.get(start_arrow.naive, tzinfo=source_timezone)
+                # else: Behalte existierende Zeitzone
+                
+                if not end_has_tz or str(end_arrow.tzinfo) == 'tzutc()':
+                    end_arrow = arrow.get(end_arrow.naive, tzinfo=source_timezone)
                 event.begin = start_arrow
                 event.end = end_arrow
 
@@ -349,6 +419,7 @@ class CalendarSyncer:
         delete_pause_every=50,
         create_pause_every=50,
         max_attempts=3,
+        source_id=None,
     ):
         """Synchronisiert Events zum Zielkalender mittels Delta-Sync und Batch-API."""
         
@@ -356,6 +427,21 @@ class CalendarSyncer:
         event_cache = self._load_cache('events')
         cached_hashes = event_cache.get('hashes', {})
         cached_event_ids = event_cache.get('event_ids', {})
+        cached_target_id = event_cache.get('target_id')
+        cached_source_id = event_cache.get('source_id')
+        
+        # Cache invalidieren wenn sich die Ziel- oder Quell-Kalender-ID geändert hat
+        cache_invalidated = False
+        if cached_target_id and cached_target_id != target_id:
+            self.log(f"Zielkalender geändert ({cached_target_id} -> {target_id}) - Cache wird zurückgesetzt")
+            cache_invalidated = True
+        if cached_source_id and source_id and cached_source_id != source_id:
+            self.log(f"Quellkalender geändert - Event-Cache wird zurückgesetzt")
+            cache_invalidated = True
+            
+        if cache_invalidated:
+            cached_hashes = {}
+            cached_event_ids = {}
         
         # KRITISCH: Bei leerem Cache erst den Zielkalender scannen!
         # Verhindert Duplikate beim ersten Sync oder nach Cache-Verlust
@@ -453,6 +539,8 @@ class CalendarSyncer:
         self._save_cache('events', {
             'hashes': cached_hashes,
             'event_ids': cached_event_ids,
+            'target_id': target_id,
+            'source_id': source_id,  # Speichere auch Quell-ID für Invalidierung
             'last_sync': datetime.now(timezone.utc).isoformat()
         })
         
@@ -576,6 +664,18 @@ class CalendarSyncer:
             self.log("Sync abgebrochen: source_id oder target_id fehlt")
             return
 
+        # Prüfe ob sich die Quell-ID geändert hat (ICS-Cache invalidieren)
+        ics_cache = self._load_cache('ics')
+        cached_source_url = ics_cache.get('source_url')
+        if cached_source_url and cached_source_url != SOURCE_CALENDAR_ID:
+            self.log(f"Quellkalender geändert - ICS-Cache wird gelöscht")
+            cache_path = self._get_cache_path('ics')
+            if cache_path and os.path.exists(cache_path):
+                try:
+                    os.remove(cache_path)
+                except Exception:
+                    pass
+
         # Zeitfenster: 6 Monate in Vergangenheit und Zukunft synchronisieren
         now = datetime.now(timezone.utc)
         time_min_dt = now - timedelta(days=180)  # 6 Monate in die Vergangenheit
@@ -596,7 +696,10 @@ class CalendarSyncer:
 
         self.log(f"Quelle: {len(source_events)} Events")
         eligible_events, excluded = self.filter_events(source_events, REGEX_PATTERNS)
-        created, deleted = self.sync_to_target(TARGET_CALENDAR_ID, eligible_events, time_min_iso, time_max_iso)
+        created, deleted = self.sync_to_target(
+            TARGET_CALENDAR_ID, eligible_events, time_min_iso, time_max_iso,
+            source_id=SOURCE_CALENDAR_ID
+        )
 
         self.log_user(f"Sync abgeschlossen: {created} erstellt, {deleted} gelöscht, {excluded} gefiltert.")
         self.log(f"Sync-Ende: created={created}, deleted={deleted}, excluded={excluded}")
