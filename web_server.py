@@ -329,21 +329,26 @@ def get_app():
         """Prüft ob die ICS-URL erreichbar ist und gültiges ICS enthält. Gibt Fehlermeldung oder None zurück."""
         import requests as req
         try:
-            response = req.get(url, timeout=10, stream=True)
+            headers = {
+                'User-Agent': 'DHBW-Calendar-Cleaner/1.0 (https://github.com/STAINCABLER/DHBW_Calendar_Cleaner)',
+                'Accept': 'text/calendar, */*'
+            }
+            response = req.get(url, timeout=15, stream=True, headers=headers, allow_redirects=True)
             response.raise_for_status()
             
-            # Prüfe Content-Type (optional, da manche Server falsch konfiguriert sind)
-            content_type = response.headers.get('Content-Type', '')
-            
-            # Lese nur die ersten 1000 Bytes um zu prüfen ob es ICS ist
-            first_chunk = response.raw.read(1000).decode('utf-8', errors='ignore')
+            # Lese die ersten 4KB um sicherzustellen dass wir VCALENDAR finden
+            # (manche ICS-Dateien haben lange Header mit Kommentaren)
+            first_chunk = response.raw.read(4096).decode('utf-8', errors='ignore')
             
             if 'BEGIN:VCALENDAR' not in first_chunk:
-                return f"Quellkalender: Die URL liefert keine gültige ICS-Datei (kein VCALENDAR gefunden)."
+                # Prüfe ob es sich um eine HTML-Seite handelt (Login-Redirect)
+                if '<html' in first_chunk.lower() or '<!doctype' in first_chunk.lower():
+                    return "Quellkalender: Die URL führt zu einer HTML-Seite statt einer ICS-Datei. Bitte prüfen Sie ob ein Login erforderlich ist."
+                return "Quellkalender: Die URL liefert keine gültige ICS-Datei (kein VCALENDAR gefunden)."
             
             return None  # Kein Fehler
         except req.exceptions.Timeout:
-            return "Quellkalender: Die URL ist nicht erreichbar (Timeout nach 10 Sekunden)."
+            return "Quellkalender: Die URL ist nicht erreichbar (Timeout nach 15 Sekunden)."
         except req.exceptions.SSLError:
             return "Quellkalender: SSL-Zertifikatsfehler. Bitte HTTPS-URL prüfen."
         except req.exceptions.ConnectionError:

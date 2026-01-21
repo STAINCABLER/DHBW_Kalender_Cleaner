@@ -38,7 +38,7 @@
                             {{ tooltip('Geben Sie die Google Kalender-ID (z.B. abc@group.calendar.google.com) oder die öffentliche .ics-URL (z.B. https://...) des Quellkalenders an.') }}
                         </label>
                         <input type="text" id="source_id" name="source_id" required value="{{ config.source_id }}"
-                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3">
                     </div>
 
                     <div>
@@ -47,7 +47,7 @@
                             {{ tooltip('Wählen Sie die Zeitzone, in der die Termine Ihres Quellkalenders (insb. ICS-Dateien) gemeint sind. Dies korrigiert 1-Stunden-Offsets.') }}
                         </label>
                         <select id="source_timezone" name="source_timezone"
-                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2">
                             {% for tz in timezones %}
                             <option value="{{ tz }}" {% if tz == config.source_timezone %}selected{% endif %}>
                                 {{ tz }}
@@ -62,7 +62,7 @@
                             {{ tooltip('Geben Sie die Kalender-ID (aus den Google Kalender-Einstellungen) des Zielkalenders an. Dieser Kalender muss Ihnen gehören und wird bei jedem Sync geleert.') }}
                         </label>
                         <input type="text" id="target_id" name="target_id" required value="{{ config.target_id }}"
-                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3">
                     </div>
 
                     <div>
@@ -97,7 +97,7 @@
                             Bitte geben Sie Ihre E-Mail-Adresse (<strong>{{ current_user.data.email }}</strong>) ein, um die Löschung zu bestätigen:
                         </label>
                         <input type="email" id="email_confirmation" name="email_confirmation" required
-                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500"
+                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 pl-3"
                                placeholder="{{ current_user.data.email }}">
                         <button type="submit" id="delete-final-btn"
                                 class="w-full rounded-full bg-red-700 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
