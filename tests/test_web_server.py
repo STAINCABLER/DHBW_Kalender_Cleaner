@@ -2,11 +2,6 @@
 Tests für web_server.py: Routen, Auth, Security-Headers.
 """
 
-import os
-import json
-import pytest
-from unittest.mock import MagicMock, patch
-
 
 class TestPublicRoutes:
     """Öffentliche Routen."""
@@ -102,7 +97,7 @@ class TestSecurityHeaders:
     
     def test_hsts_header_present(self, client):
         """HSTS-Header wird gesetzt."""
-        response = client.get('/login')
+        _ = client.get('/login')
         
         # Hinweis: Talisman setzt HSTS nur bei HTTPS oder force_https=True
         # In Tests ist es möglicherweise nicht gesetzt
@@ -117,11 +112,10 @@ class TestSecurityHeaders:
     
     def test_xss_protection_header(self, client):
         """X-XSS-Protection Header vorhanden."""
-        response = client.get('/login')
+        _ = client.get('/login')
         
         # Moderne Browser ignorieren diesen Header, aber Talisman setzt ihn trotzdem
-        xss_header = response.headers.get('X-XSS-Protection')
-        # Kann '1; mode=block' oder ähnlich sein
+        # Header kann '1; mode=block' oder ähnlich sein
         pass
 
 
@@ -130,16 +124,10 @@ class TestRateLimiting:
     
     def test_rate_limit_headers_present(self, client):
         """Rate-Limit-Header sind vorhanden."""
-        response = client.get('/login')
+        _ = client.get('/login')
         
-        # Flask-Limiter setzt diese Header
+        # Flask-Limiter setzt diese Header (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset)
         # Hinweis: Nur wenn nicht durch 429 geblockt
-        rate_limit_headers = [
-            'X-RateLimit-Limit',
-            'X-RateLimit-Remaining',
-            'X-RateLimit-Reset',
-        ]
-        
         # Mindestens einer sollte vorhanden sein (abhängig von Limiter-Konfiguration)
         pass  # Rate-Limiting ist aktiviert, aber Headers können variieren
 

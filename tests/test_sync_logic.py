@@ -5,7 +5,6 @@ Tests für sync_logic.py: Filterung, Standardisierung, Caching.
 import os
 from unittest.mock import MagicMock
 import responses
-import arrow
 
 
 class TestEventStandardization:
