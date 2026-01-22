@@ -285,21 +285,15 @@ class CalendarSyncer:
                         continue
                     seen_uids.add(event_uid)
 
-                # Zeitzonen-Korrektur: Nur wenn Event keine Zeitzone hat
+                # Zeitzonen-Korrektur: Erzwinge immer die User-Zeitzone (Wall-Time Rewrite)
+                # Wir ignorieren die ICS-Zeitzone und interpretieren die "nackte" Zeit (Wall Time)
+                # als Local Time in der konfigurierten Zeitzone.
                 start_arrow = event.begin
                 end_arrow = event.end
                 
-                # Prüfe ob das Event bereits eine Zeitzone hat
-                start_has_tz = hasattr(start_arrow, 'tzinfo') and start_arrow.tzinfo is not None
-                end_has_tz = hasattr(end_arrow, 'tzinfo') and end_arrow.tzinfo is not None
+                start_arrow = arrow.get(start_arrow.naive, tzinfo=source_timezone)
+                end_arrow = arrow.get(end_arrow.naive, tzinfo=source_timezone)
                 
-                if not start_has_tz or str(start_arrow.tzinfo) == 'tzutc()':
-                    # Naive Zeit oder UTC-Float: Wende User-Zeitzone an
-                    start_arrow = arrow.get(start_arrow.naive, tzinfo=source_timezone)
-                # else: Behalte existierende Zeitzone
-                
-                if not end_has_tz or str(end_arrow.tzinfo) == 'tzutc()':
-                    end_arrow = arrow.get(end_arrow.naive, tzinfo=source_timezone)
                 event.begin = start_arrow
                 event.end = end_arrow
 

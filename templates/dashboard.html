@@ -49,8 +49,8 @@
                         <select id="source_timezone" name="source_timezone"
                                 class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2">
                             {% for tz in timezones %}
-                            <option value="{{ tz }}" {% if tz == config.source_timezone %}selected{% endif %}>
-                                {{ tz }}
+                            <option value="{{ tz.value }}" {% if tz.value == config.source_timezone %}selected{% endif %}>
+                                {{ tz.label }}
                             </option>
                             {% endfor %}
                         </select>

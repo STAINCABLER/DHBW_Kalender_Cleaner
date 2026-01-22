@@ -300,6 +300,63 @@ class TestICSParsing:
         assert len(events) == 3
     
     @responses.activate
+    def test_fetch_ics_timezone_override(self, temp_data_dir, setup_test_environment):
+        """Source Timezone überschreibt existierende Timezones (Rewrite)."""
+        from sync_logic import CalendarSyncer
+        import sync_logic
+        
+        sync_logic.CACHE_DIR = str(temp_data_dir / '.cache')
+        os.makedirs(sync_logic.CACHE_DIR, exist_ok=True)
+        
+        # ICS mit verschiedenen Timezones
+        ics_content = """BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Test//Timezone Override//EN
+BEGIN:VEVENT
+DTSTART:20260121T100000Z
+DTEND:20260121T110000Z
+SUMMARY:UTC Event
+UID:utc-event@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260121T140000
+DTEND;TZID=America/New_York:20260121T150000
+SUMMARY:New York Event
+UID:ny-event@test.com
+END:VEVENT
+END:VCALENDAR"""
+        
+        responses.add(
+            responses.GET,
+            'https://example.com/tz-override.ics',
+            body=ics_content,
+            status=200,
+        )
+        
+        mock_service = MagicMock()
+        syncer = CalendarSyncer(mock_service, user_id='tz-test')
+        
+        # Wir setzen "Europe/Berlin" als Source Timezone
+        events = syncer.fetch_ics_events(
+            'https://example.com/tz-override.ics',
+            source_timezone='Europe/Berlin'
+        )
+        
+        assert len(events) == 2
+        
+        # Helper to find event by summary
+        utc_event = next(e for e in events if e['summary'] == 'UTC Event')
+        ny_event = next(e for e in events if e['summary'] == 'New York Event')
+        
+        # UTC Event (10:00Z) sollte als 10:00 Berlin interpretiert werden (+01:00)
+        # 10:00 +01:00 -> ISO string: 2026-01-21T10:00:00+01:00
+        assert utc_event['start']['dateTime'].startswith('2026-01-21T10:00:00+01:00')
+        
+        # New York Event (14:00 NY) sollte als 14:00 Berlin interpretiert werden
+        # 14:00 +01:00 -> ISO string: 2026-01-21T14:00:00+01:00
+        assert ny_event['start']['dateTime'].startswith('2026-01-21T14:00:00+01:00')
+    
+    @responses.activate
     def test_fetch_ics_events_deduplicates(self, temp_data_dir, setup_test_environment):
         """Duplikate werden entfernt."""
         from sync_logic import CalendarSyncer

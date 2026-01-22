@@ -298,11 +298,43 @@ def get_app():
         
         user_log_file = os.path.join(DATA_DIR, f"{current_user.id}.log")
         initial_logs = get_log_lines_for_file(user_log_file, n=50)
+
+        # Berechne Offsets für alle Zeitzonen für bessere UX
+        timezones_display = []
+        # Verwende naive UTC-Zeit für pytz.localize()
+        now_naive = datetime.now(tz=pytz.utc).replace(tzinfo=None)
+        for tz_name in pytz.common_timezones:
+            try:
+                tz = pytz.timezone(tz_name)
+                # Lokalisiere naive Zeit in die Zeitzone, dann hole Offset
+                localized_dt = tz.localize(now_naive, is_dst=None)
+                offset = localized_dt.utcoffset()
+                
+                # Formatierung: (+HH:MM) oder (-HH:MM)
+                total_seconds = int(offset.total_seconds())
+                sign = "+" if total_seconds >= 0 else "-"
+                hours, remainder = divmod(abs(total_seconds), 3600)
+                minutes, _ = divmod(remainder, 60)
+                
+                offset_str = f"({sign}{hours:02d}:{minutes:02d})"
+                # Verwende Non-Breaking Spaces für Abstand
+                display_str = f"{tz_name}   {offset_str}"
+                
+                timezones_display.append({
+                    'value': tz_name,
+                    'label': display_str
+                })
+            except Exception as e:
+                # Fallback bei Fehlern (z.B. bei mehrdeutigen Zeiten)
+                timezones_display.append({
+                    'value': tz_name,
+                    'label': tz_name
+                })
         
         return render_template('dashboard.html', 
                                config=current_user.get_config(),
                                logs=initial_logs,
-                               timezones=pytz.common_timezones)
+                               timezones=timezones_display)
 
     def _validate_calendar_access(calendar_id, calendar_name):
         """Prüft ob der User Zugriff auf den Kalender hat. Gibt Fehlermeldung oder None zurück."""
