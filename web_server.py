@@ -43,9 +43,9 @@ def get_app():
     csp = {
         'default-src': "'self'",
         'script-src': ["'self'", "'unsafe-inline'", 'cdn.tailwindcss.com'],
-        'style-src': ["'self'", "'unsafe-inline'", 'cdn.tailwindcss.com'],
+        'style-src': ["'self'", "'unsafe-inline'", 'cdn.tailwindcss.com', 'fonts.googleapis.com'],
         'img-src': ["'self'", 'data:', 'https:'],
-        'font-src': ["'self'", 'data:'],
+        'font-src': ["'self'", 'data:', 'fonts.gstatic.com'],
         'connect-src': ["'self'"],
     }
     Talisman(
