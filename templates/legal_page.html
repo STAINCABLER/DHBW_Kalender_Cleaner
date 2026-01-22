@@ -1,86 +1,93 @@
 {% extends "base.html" %}
 
-{% block html_class %}h-full bg-slate-100{% endblock %}
+{% block html_class %}h-full bg-m3-surface{% endblock %}
 {% block title %}{{ title }} - DHBW Calendar Cleaner{% endblock %}
-{% block body_class %}py-12 px-4{% endblock %}
+{% block body_class %}py-12 px-4 text-m3-on-surface{% endblock %}
 
 {% block head_extra %}
 <style>
-    /* Markdown Styling für Prose-ähnliches Layout */
+    /* M3 Markdown/Prose Styling using Tailwind Theme Colors */
     .markdown-content h1 {
-        font-size: 1.875rem;
-        font-weight: 700;
-        color: #111827;
+        font-size: 32px;
+        line-height: 40px;
+        font-weight: 400;
+        color: #1d1b20;
         margin-bottom: 0.5rem;
-        line-height: 1.2;
     }
     .markdown-content h2 {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #111827;
+        font-size: 22px;
+        line-height: 28px;
+        font-weight: 500;
+        color: #1d1b20;
         margin-top: 1.5rem;
         margin-bottom: 0.75rem;
     }
     .markdown-content p {
+        font-size: 14px;
+        line-height: 20px;
         margin-bottom: 1rem;
-        color: #374151;
-        line-height: 1.625;
+        color: #49454f;
     }
     .markdown-content ul {
         list-style-type: disc;
         margin-left: 1.5rem;
         margin-bottom: 1rem;
-        color: #374151;
+        color: #49454f;
     }
     .markdown-content ul li {
         margin-bottom: 0.25rem;
+        font-size: 14px;
+        line-height: 20px;
     }
     .markdown-content a {
-        color: #2563eb;
+        color: #1a73e8;
         text-decoration: none;
+        font-weight: 500;
     }
     .markdown-content a:hover {
         text-decoration: underline;
     }
     .markdown-content strong {
-        font-weight: 600;
+        font-weight: 500;
+        color: #1d1b20;
     }
     .markdown-content em {
         font-style: italic;
-        color: #6b7280;
-        font-size: 0.875rem;
+        color: #49454f;
+        font-size: 12px;
     }
     .markdown-content hr {
         margin: 1.5rem 0;
-        border-color: #e5e7eb;
+        border-color: #cac4d0;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="w-full max-w-3xl mx-auto p-8 space-y-6 bg-white rounded-2xl shadow-xl">
+<div class="w-full max-w-3xl mx-auto p-8 space-y-6 bg-m3-surface-container rounded-m3-md shadow-m3-elevation-1">
     <div class="markdown-content">
         {{ content }}
     </div>
 
     <div class="pt-4">
          <a href="{{ url_for('index') }}" 
-            class="inline-flex items-center gap-2 rounded-full bg-gray-200 px-4 py-2 font-medium text-gray-800 transition hover:bg-gray-300">
-            &larr; Zurück
+            class="m3-state-layer inline-flex items-center gap-2 h-10 px-4 rounded-m3-full bg-m3-secondary-container text-m3-on-secondary-container text-m3-label-lg transition-colors duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-secondary focus-visible:ring-offset-2">
+            <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+            <span>Zurück</span>
         </a>
     </div>
 </div>
 {% endblock %}
 
 {% block footer %}
-<footer class="text-center text-xs text-gray-500 py-6 space-y-1 w-full max-w-3xl mx-auto">
+<footer class="text-center text-m3-body-sm text-m3-on-surface-variant py-6 space-y-1 w-full max-w-3xl mx-auto">
      <div class="flex justify-center gap-4 mb-1">
-        <a href="{{ url_for('privacy_policy') }}" class="font-medium text-blue-600 hover:underline">Datenschutz</a>
-        <a href="{{ url_for('terms_of_service') }}" class="font-medium text-blue-600 hover:underline">Nutzungsbedingungen</a>
+        <a href="{{ url_for('privacy_policy') }}" class="font-medium text-m3-primary hover:underline">Datenschutz</a>
+        <a href="{{ url_for('terms_of_service') }}" class="font-medium text-m3-primary hover:underline">Nutzungsbedingungen</a>
     </div>
     <p>
         Mehr Projekte findest du bei 
-        <a href="https://thulium-labs.de" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">thulium-labs.de</a>.
+        <a href="https://thulium-labs.de" target="_blank" rel="noopener" class="font-medium text-m3-primary hover:underline">thulium-labs.de</a>.
     </p>
     <p>Made by Tobias Maimone</p>
 </footer>

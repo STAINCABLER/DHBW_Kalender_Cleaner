@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 {% from "macros.html" import flash_messages %}
 
-{% block html_class %}h-full bg-slate-100{% endblock %}
+{% block html_class %}h-full bg-m3-surface{% endblock %}
 {% block title %}Login - DHBW Calendar Cleaner{% endblock %}
-{% block body_class %}h-full grid place-items-center{% endblock %}
+{% block body_class %}h-full grid place-items-center text-m3-on-surface{% endblock %}
 
 {% block content %}
-<div class="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-xl">
+<div class="w-full max-w-md p-6 space-y-6 bg-m3-surface-container-low rounded-m3-xl shadow-m3-elevation-2">
     <div class="text-center">
-        <h1 class="text-3xl font-bold tracking-tight text-gray-900">
+        <h1 class="text-m3-headline-md text-m3-on-surface">
             DHBW Calendar Cleaner
         </h1>
-        <p class="mt-2 text-gray-600">
+        <p class="mt-3 text-m3-body-md text-m3-on-surface-variant">
             Bitte melden Sie sich mit Ihrem Google-Konto an, um die Synchronisierung einzurichten.
         </p>
     </div>
@@ -19,22 +19,22 @@
     {{ flash_messages() }}
 
     <a href="{{ url_for('login') }}" 
-       class="flex w-full items-center justify-center gap-3 rounded-full bg-blue-600 px-6 py-3 font-medium text-white shadow-md transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-        <img class="h-6 w-6" src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo">
+       class="m3-state-layer flex w-full items-center justify-center gap-3 h-12 rounded-m3-full bg-m3-primary text-m3-on-primary text-m3-label-lg shadow-m3-elevation-1 hover:shadow-m3-elevation-2 transition-shadow duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2">
+        <img class="h-5 w-5" src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo">
         <span>Mit Google anmelden</span>
     </a>
 </div>
 {% endblock %}
 
 {% block footer %}
-<footer class="text-center text-xs text-gray-500 py-4 space-y-1 absolute bottom-4 w-full">
-    <div class="flex justify-center gap-4 mb-1">
-        <a href="{{ url_for('privacy_policy') }}" class="font-medium text-blue-600 hover:underline">Datenschutz</a>
-        <a href="{{ url_for('terms_of_service') }}" class="font-medium text-blue-600 hover:underline">Nutzungsbedingungen</a>
+<footer class="text-center text-m3-body-sm text-m3-on-surface-variant py-4 space-y-2 absolute bottom-4 w-full">
+    <div class="flex justify-center gap-4 mb-2">
+        <a href="{{ url_for('privacy_policy') }}" class="text-m3-primary hover:underline">Datenschutz</a>
+        <a href="{{ url_for('terms_of_service') }}" class="text-m3-primary hover:underline">Nutzungsbedingungen</a>
     </div>
     <p>
         Mehr Projekte findest du bei 
-        <a href="https://thulium-labs.de" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">thulium-labs.de</a>.
+        <a href="https://thulium-labs.de" target="_blank" rel="noopener" class="text-m3-primary hover:underline">thulium-labs.de</a>.
     </p>
     <p>Made by Tobias Maimone</p>
 </footer>

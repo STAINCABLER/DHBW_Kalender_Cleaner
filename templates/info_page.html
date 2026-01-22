@@ -1,54 +1,68 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf_input %}
 
-{% block html_class %}h-full bg-slate-100{% endblock %}
+{% block html_class %}h-full bg-m3-surface{% endblock %}
 {% block title %}Willkommen - DHBW Calendar Cleaner{% endblock %}
-{% block body_class %}py-12 px-4{% endblock %}
+{% block body_class %}py-12 px-4 text-m3-on-surface{% endblock %}
 
 {% block content %}
-<div class="w-full max-w-2xl mx-auto p-8 space-y-6 bg-white rounded-2xl shadow-xl">
+<div class="w-full max-w-2xl mx-auto p-6 space-y-6 bg-m3-surface-container-low rounded-m3-xl shadow-m3-elevation-2">
     <div class="text-center">
-        <h1 class="text-3xl font-bold tracking-tight text-gray-900">
+        <h1 class="text-m3-headline-md text-m3-on-surface">
             Willkommen beim DHBW Calendar Cleaner
         </h1>
     </div>
     
-    <p class="text-gray-700">
+    <p class="text-m3-body-lg text-m3-on-surface-variant">
         Dieses Tool importiert Veranstaltungen aus einem DHBW-Kalender oder einer ICS-Quelle in einen eigenen Google Kalender und blendet unerwünschte Fächer mit Regex-Filtern aus.
     </p>
 
-    <div class="border-l-4 border-red-500 bg-red-50 p-4 rounded-lg">
-        <h2 class="text-lg font-bold text-red-800">Wichtige Warnung zur Datensicherheit</h2>
-        <p class="text-red-700 mt-2">
-            Um Duplikate zu vermeiden, löscht dieses Tool <strong>ALLE</strong> Termine in dem von Ihnen gewählten <strong>Zielkalender</strong>, bevor die neuen, gefilterten Termine importiert werden.
-        </p>
-        <p class="text-red-700 mt-2 font-bold">
-            Erstellen Sie daher unbedingt einen NEUEN, LEEREN Google Kalender für dieses Tool. Verwenden Sie NICHT Ihren Hauptkalender.
-        </p>
+    <!-- M3 Error Container Card -->
+    <div class="bg-m3-error-container p-4 rounded-m3-md">
+        <div class="flex items-start gap-3">
+            <span class="material-symbols-outlined text-m3-on-error-container text-[24px]">warning</span>
+            <div>
+                <h2 class="text-m3-title-md text-m3-on-error-container">Wichtige Warnung zur Datensicherheit</h2>
+                <p class="text-m3-body-md text-m3-on-error-container mt-2">
+                    Um Duplikate zu vermeiden, löscht dieses Tool <strong>ALLE</strong> Termine in dem von Ihnen gewählten <strong>Zielkalender</strong>, bevor die neuen, gefilterten Termine importiert werden.
+                </p>
+                <p class="text-m3-body-md text-m3-on-error-container mt-2 font-medium">
+                    Erstellen Sie daher unbedingt einen NEUEN, LEEREN Google Kalender für dieses Tool. Verwenden Sie NICHT Ihren Hauptkalender.
+                </p>
+            </div>
+        </div>
     </div>
     
-    <div class="border-l-4 border-yellow-500 bg-yellow-50 p-4 rounded-lg">
-        <h2 class="text-lg font-bold text-yellow-800">Haftungsausschluss</h2>
-        <p class="text-yellow-700 mt-2">
-            Dies ist ein studentisches Projekt in einer frühen Alpha-Version. Es gibt keine Garantie auf Vollständigkeit oder Fehlerfreiheit. Die Nutzung erfolgt vollständig auf eigene Verantwortung. Es werden keine Haftungsansprüche übernommen.
-        </p>
+    <!-- M3 Warning Container Card -->
+    <div class="bg-m3-warning-container p-4 rounded-m3-md">
+        <div class="flex items-start gap-3">
+            <span class="material-symbols-outlined text-m3-on-warning-container text-[24px]">info</span>
+            <div>
+                <h2 class="text-m3-title-md text-m3-on-warning-container">Haftungsausschluss</h2>
+                <p class="text-m3-body-md text-m3-on-warning-container mt-2">
+                    Dies ist ein studentisches Projekt in einer frühen Alpha-Version. Es gibt keine Garantie auf Vollständigkeit oder Fehlerfreiheit. Die Nutzung erfolgt vollständig auf eigene Verantwortung. Es werden keine Haftungsansprüche übernommen.
+                </p>
+            </div>
+        </div>
     </div>
 
     <div class="pt-4 space-y-4">
         <button id="proceed-btn"
-                class="flex w-full items-center justify-center gap-3 rounded-full bg-blue-600 px-6 py-3 font-medium text-white shadow-md transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-            Ich habe die Warnungen verstanden und möchte fortfahren
+                class="m3-state-layer flex w-full items-center justify-center gap-2 h-12 rounded-m3-full bg-m3-primary text-m3-on-primary text-m3-label-lg shadow-m3-elevation-1 hover:shadow-m3-elevation-2 transition-shadow duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2">
+            <span class="material-symbols-outlined text-[18px]">check</span>
+            <span>Ich habe die Warnungen verstanden und möchte fortfahren</span>
         </button>
 
-        <div id="warning-box" class="hidden p-4 bg-red-100 border border-red-400 rounded-lg text-center space-y-4">
-            <p class="font-bold text-red-800">
+        <div id="warning-box" class="hidden p-4 bg-m3-error-container rounded-m3-md text-center space-y-4">
+            <p class="text-m3-title-sm text-m3-on-error-container">
                 Letzte Warnung: Sind Sie sicher, dass Sie verstanden haben, dass alle Daten im Zielkalender unwiderruflich gelöscht werden?
             </p>
             <form action="{{ url_for('accept_disclaimer') }}" method="POST">
                 {{ csrf_input() }}
                 <button type="submit"
-                        class="flex w-full items-center justify-center gap-3 rounded-full bg-red-600 px-6 py-3 font-medium text-white shadow-md transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
-                    Ja, ich habe es verstanden und übernehme die Verantwortung
+                        class="m3-state-layer flex w-full items-center justify-center gap-2 h-12 rounded-m3-full bg-m3-error text-m3-on-error text-m3-label-lg shadow-m3-elevation-1 hover:shadow-m3-elevation-2 transition-shadow duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-error focus-visible:ring-offset-2">
+                    <span class="material-symbols-outlined text-[18px]">verified</span>
+                    <span>Ja, ich habe es verstanden und übernehme die Verantwortung</span>
                 </button>
             </form>
         </div>
@@ -57,14 +71,14 @@
 {% endblock %}
 
 {% block footer %}
-<footer class="text-center text-xs text-gray-500 py-6 space-y-1 w-full max-w-2xl mx-auto">
-     <div class="flex justify-center gap-4 mb-1">
-        <a href="{{ url_for('privacy_policy') }}" class="font-medium text-blue-600 hover:underline">Datenschutz</a>
-        <a href="{{ url_for('terms_of_service') }}" class="font-medium text-blue-600 hover:underline">Nutzungsbedingungen</a>
+<footer class="text-center text-m3-body-sm text-m3-on-surface-variant py-6 space-y-2 w-full max-w-2xl mx-auto">
+     <div class="flex justify-center gap-4 mb-2">
+        <a href="{{ url_for('privacy_policy') }}" class="text-m3-primary hover:underline">Datenschutz</a>
+        <a href="{{ url_for('terms_of_service') }}" class="text-m3-primary hover:underline">Nutzungsbedingungen</a>
     </div>
     <p>
         Mehr Projekte findest du bei 
-        <a href="https://thulium-labs.de" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">thulium-labs.de</a>.
+        <a href="https://thulium-labs.de" target="_blank" rel="noopener" class="text-m3-primary hover:underline">thulium-labs.de</a>.
     </p>
     <p>Made by Tobias Maimone</p>
 </footer>

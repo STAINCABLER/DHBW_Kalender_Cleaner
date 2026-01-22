@@ -1,32 +1,42 @@
-{# Template-Makros #}
+{# Template-Makros - Material Design 3 konform #}
 
-{# Flash-Messages #}
+{# M3 Snackbar-Style Flash Messages #}
 {% macro flash_messages() %}
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     <div class="space-y-3">
     {% for category, message in messages %}
-      {% set color = 'blue' if category == 'info' else ('green' if category == 'success' else 'red') %}
-      <div class="border-l-4 border-{{ color }}-400 bg-{{ color }}-50 p-4 rounded-lg">
-          <div class="text-sm text-{{ color }}-800">
-            {{ message }}
-          </div>
+      {% if category == 'info' %}
+      <div class="flex items-center gap-3 bg-m3-inverse-surface text-m3-inverse-on-surface px-4 py-3 rounded-m3-xs shadow-m3-elevation-3">
+          <span class="material-symbols-outlined text-m3-inverse-primary">info</span>
+          <span class="text-m3-body-md flex-1">{{ message }}</span>
       </div>
+      {% elif category == 'success' %}
+      <div class="flex items-center gap-3 bg-m3-tertiary-container text-m3-on-tertiary-container px-4 py-3 rounded-m3-xs shadow-m3-elevation-1">
+          <span class="material-symbols-outlined">check_circle</span>
+          <span class="text-m3-body-md flex-1">{{ message }}</span>
+      </div>
+      {% else %}
+      <div class="flex items-center gap-3 bg-m3-error-container text-m3-on-error-container px-4 py-3 rounded-m3-xs shadow-m3-elevation-1">
+          <span class="material-symbols-outlined">error</span>
+          <span class="text-m3-body-md flex-1">{{ message }}</span>
+      </div>
+      {% endif %}
     {% endfor %}
     </div>
   {% endif %}
 {% endwith %}
 {% endmacro %}
 
-{# Tooltip - Click to toggle #}
+{# M3 Plain Tooltip - Click to toggle #}
 {% macro tooltip(text) %}
 <span class="tooltip-wrapper relative ml-2 inline-block">
-    <button type="button" class="tooltip-trigger flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-gray-300 text-xs font-bold text-gray-600 hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
-        ?
+    <button type="button" class="tooltip-trigger inline-flex items-center justify-center w-5 h-5 rounded-m3-full bg-m3-surface-container-high text-m3-on-surface-variant hover:bg-m3-surface-container-highest transition-colors duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary">
+        <span class="material-symbols-outlined text-[16px]">help</span>
     </button>
-    <span class="tooltip-content hidden absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 rounded-md bg-gray-800 px-3 py-2 text-center text-sm text-white shadow-lg z-50">
+    <span class="tooltip-content hidden absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 rounded-m3-xs bg-m3-inverse-surface px-3 py-2 text-center text-m3-body-sm text-m3-inverse-on-surface shadow-m3-elevation-2 z-50">
         {{ text }}
-        <span class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></span>
+        <span class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-m3-inverse-surface"></span>
     </span>
 </span>
 {% endmacro %}
@@ -34,4 +44,49 @@
 {# CSRF-Token #}
 {% macro csrf_input() %}
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{% endmacro %}
+
+{# M3 Filled Button #}
+{% macro m3_button_filled(text, type='submit', icon=None, class_extra='') %}
+<button type="{{ type }}" 
+        class="m3-state-layer inline-flex items-center justify-center gap-2 h-10 px-6 rounded-m3-full bg-m3-primary text-m3-on-primary text-m3-label-lg shadow-m3-elevation-1 hover:shadow-m3-elevation-2 transition-shadow duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 disabled:opacity-38 disabled:shadow-none {{ class_extra }}">
+    {% if icon %}<span class="material-symbols-outlined text-[18px]">{{ icon }}</span>{% endif %}
+    <span>{{ text }}</span>
+</button>
+{% endmacro %}
+
+{# M3 Tonal Button #}
+{% macro m3_button_tonal(text, type='submit', icon=None, class_extra='') %}
+<button type="{{ type }}" 
+        class="m3-state-layer inline-flex items-center justify-center gap-2 h-10 px-6 rounded-m3-full bg-m3-secondary-container text-m3-on-secondary-container text-m3-label-lg transition-colors duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-secondary focus-visible:ring-offset-2 disabled:opacity-38 {{ class_extra }}">
+    {% if icon %}<span class="material-symbols-outlined text-[18px]">{{ icon }}</span>{% endif %}
+    <span>{{ text }}</span>
+</button>
+{% endmacro %}
+
+{# M3 Outlined Button #}
+{% macro m3_button_outlined(text, type='button', icon=None, class_extra='') %}
+<button type="{{ type }}" 
+        class="m3-state-layer inline-flex items-center justify-center gap-2 h-10 px-6 rounded-m3-full border border-m3-outline text-m3-primary text-m3-label-lg transition-colors duration-m3-short4 ease-m3-standard hover:bg-m3-primary/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 disabled:opacity-38 {{ class_extra }}">
+    {% if icon %}<span class="material-symbols-outlined text-[18px]">{{ icon }}</span>{% endif %}
+    <span>{{ text }}</span>
+</button>
+{% endmacro %}
+
+{# M3 Text Button #}
+{% macro m3_button_text(text, type='button', icon=None, class_extra='') %}
+<button type="{{ type }}" 
+        class="m3-state-layer inline-flex items-center justify-center gap-2 h-10 px-3 rounded-m3-full text-m3-primary text-m3-label-lg transition-colors duration-m3-short4 ease-m3-standard hover:bg-m3-primary/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2 disabled:opacity-38 {{ class_extra }}">
+    {% if icon %}<span class="material-symbols-outlined text-[18px]">{{ icon }}</span>{% endif %}
+    <span>{{ text }}</span>
+</button>
+{% endmacro %}
+
+{# M3 Error Button (Filled) #}
+{% macro m3_button_error(text, type='submit', icon=None, class_extra='') %}
+<button type="{{ type }}" 
+        class="m3-state-layer inline-flex items-center justify-center gap-2 h-10 px-6 rounded-m3-full bg-m3-error text-m3-on-error text-m3-label-lg shadow-m3-elevation-1 hover:shadow-m3-elevation-2 transition-shadow duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-error focus-visible:ring-offset-2 disabled:opacity-38 {{ class_extra }}">
+    {% if icon %}<span class="material-symbols-outlined text-[18px]">{{ icon }}</span>{% endif %}
+    <span>{{ text }}</span>
+</button>
 {% endmacro %}

@@ -1,19 +1,21 @@
 {% extends "base.html" %}
 {% from "macros.html" import flash_messages, tooltip, csrf_input %}
 
-{% block html_class %}bg-slate-50{% endblock %}
+{% block html_class %}bg-m3-surface{% endblock %}
 {% block title %}DHBW Calendar Cleaner - Dashboard{% endblock %}
-{% block body_class %}text-gray-900{% endblock %}
+{% block body_class %}text-m3-on-surface{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto p-4 md:p-8">
-    <header class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-gray-200">
-        <h1 class="text-3xl font-bold">DHBW Calendar Cleaner</h1>
-        <div class="flex items-center gap-4 text-sm">
-            <span>Angemeldet als: <strong>{{ current_user.data.email }}</strong></span>
+    <!-- M3 Top App Bar Style Header -->
+    <header class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-m3-outline-variant">
+        <h1 class="text-m3-headline-sm text-m3-on-surface">DHBW Calendar Cleaner</h1>
+        <div class="flex items-center gap-4 text-m3-body-md">
+            <span class="text-m3-on-surface-variant">Angemeldet als: <strong class="text-m3-on-surface">{{ current_user.data.email }}</strong></span>
             <a href="{{ url_for('logout') }}" 
-               class="rounded-full bg-gray-200 px-4 py-2 font-medium text-gray-800 transition hover:bg-gray-300">
-               Abmelden
+               class="m3-state-layer inline-flex items-center gap-2 h-10 px-4 rounded-m3-full bg-m3-secondary-container text-m3-on-secondary-container text-m3-label-lg transition-colors duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-secondary focus-visible:ring-offset-2">
+               <span class="material-symbols-outlined text-[18px]">logout</span>
+               <span>Abmelden</span>
             </a>
         </div>
     </header>
@@ -22,32 +24,38 @@
         {{ flash_messages() }}
     </div>
 
-    <main class="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-5">
+    <main class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
 
         <div class="lg:col-span-3 space-y-6">
             
-            <div class="bg-neutral-100 p-6 rounded-2xl shadow-sm">
-                <h3 class="text-xl font-semibold mb-4">Konfiguration</h3>
+            <!-- M3 Card: Konfiguration -->
+            <div class="bg-m3-surface-container p-6 rounded-m3-md">
+                <h3 class="text-m3-title-lg text-m3-on-surface mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined">settings</span>
+                    Konfiguration
+                </h3>
                 
-                <form action="{{ url_for('save_config') }}" method="POST" class="space-y-4">
+                <form action="{{ url_for('save_config') }}" method="POST" class="space-y-5">
                     {{ csrf_input() }}
                     
+                    <!-- M3 Outlined Text Field: Source ID -->
                     <div>
-                        <label for="source_id" class="flex items-center text-sm font-medium text-gray-700">
+                        <label for="source_id" class="flex items-center text-m3-label-lg text-m3-on-surface-variant mb-1">
                             Quell-Kalender ID
                             {{ tooltip('Geben Sie die Google Kalender-ID (z.B. abc@group.calendar.google.com) oder die öffentliche .ics-URL (z.B. https://...) des Quellkalenders an.') }}
                         </label>
                         <input type="text" id="source_id" name="source_id" required value="{{ config.source_id }}"
-                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3">
+                               class="m3-text-field w-full bg-transparent text-m3-on-surface">
                     </div>
 
+                    <!-- M3 Outlined Select: Timezone -->
                     <div>
-                        <label for="source_timezone" class="flex items-center text-sm font-medium text-gray-700">
+                        <label for="source_timezone" class="flex items-center text-m3-label-lg text-m3-on-surface-variant mb-1">
                             Zeitzone der Quell-Termine
                             {{ tooltip('Wählen Sie die Zeitzone, in der die Termine Ihres Quellkalenders (insb. ICS-Dateien) gemeint sind. Dies korrigiert 1-Stunden-Offsets.') }}
                         </label>
                         <select id="source_timezone" name="source_timezone"
-                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2">
+                                class="m3-text-field w-full bg-transparent text-m3-on-surface cursor-pointer">
                             {% for tz in timezones %}
                             <option value="{{ tz.value }}" {% if tz.value == config.source_timezone %}selected{% endif %}>
                                 {{ tz.label }}
@@ -56,52 +64,62 @@
                         </select>
                     </div>
 
+                    <!-- M3 Outlined Text Field: Target ID -->
                     <div>
-                        <label for="target_id" class="flex items-center text-sm font-medium text-gray-700">
+                        <label for="target_id" class="flex items-center text-m3-label-lg text-m3-on-surface-variant mb-1">
                             Ziel-Kalender ID
                             {{ tooltip('Geben Sie die Kalender-ID (aus den Google Kalender-Einstellungen) des Zielkalenders an. Dieser Kalender muss Ihnen gehören und wird bei jedem Sync geleert.') }}
                         </label>
                         <input type="text" id="target_id" name="target_id" required value="{{ config.target_id }}"
-                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3">
+                               class="m3-text-field w-full bg-transparent text-m3-on-surface">
                     </div>
 
+                    <!-- M3 Outlined Textarea: Regex Patterns -->
                     <div>
-                        <label for="regex_patterns" class="text-sm font-medium text-gray-700">RegEx Filter-Regeln (eine pro Zeile)</label>
-                        <textarea id="regex_patterns" name="regex_patterns" rows="6"
-                                  class="mt-1 block w-full rounded-lg border-gray-300 font-mono text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3"
+                        <label for="regex_patterns" class="text-m3-label-lg text-m3-on-surface-variant mb-1 block">RegEx Filter-Regeln (eine pro Zeile)</label>
+                        <textarea id="regex_patterns" name="regex_patterns" rows="5"
+                                  class="m3-text-field w-full bg-transparent text-m3-on-surface font-mono text-m3-body-sm"
                                   placeholder=".*Sport.*&#10;.*Tutorium.*">{{ config.regex_patterns | join('\n') }}</textarea>
                     </div>
 
+                    <!-- M3 Filled Button -->
                     <div>
                         <button type="submit" 
-                                class="rounded-full bg-blue-600 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                            Konfiguration speichern
+                                class="m3-state-layer inline-flex items-center justify-center gap-2 h-10 px-6 rounded-m3-full bg-m3-primary text-m3-on-primary text-m3-label-lg shadow-m3-elevation-1 hover:shadow-m3-elevation-2 transition-shadow duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-primary focus-visible:ring-offset-2">
+                            <span class="material-symbols-outlined text-[18px]">save</span>
+                            <span>Konfiguration speichern</span>
                         </button>
                     </div>
                 </form>
             </div>
             
-            <div class="bg-red-50 border-2 border-red-300 p-6 rounded-2xl shadow-sm">
-                <h3 class="text-xl font-semibold text-red-800">Gefahrenzone</h3>
+            <!-- M3 Card: Danger Zone -->
+            <div class="bg-m3-error-container p-6 rounded-m3-md">
+                <h3 class="text-m3-title-lg text-m3-on-error-container flex items-center gap-2">
+                    <span class="material-symbols-outlined">warning</span>
+                    Gefahrenzone
+                </h3>
                 <form id="delete-form" action="{{ url_for('delete_account') }}" method="POST">
                     {{ csrf_input() }}
-                    <p class="text-sm text-gray-700 mt-2 mb-4">
+                    <p class="text-m3-body-md text-m3-on-error-container mt-3 mb-4">
                         Wenn Sie Ihr Konto löschen, werden Ihr Authentifizierungs-Token und Ihre gesamte Konfiguration (Quell-, Ziel- und Filterregeln) dauerhaft von unserem Server entfernt. Dies kann nicht rückgängig gemacht werden.
                     </p>
                     <button id="delete-step-1-btn" type="button"
-                            class="rounded-full bg-red-600 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
-                        Konto dauerhaft löschen...
+                            class="m3-state-layer inline-flex items-center justify-center gap-2 h-10 px-6 rounded-m3-full bg-m3-error text-m3-on-error text-m3-label-lg shadow-m3-elevation-1 hover:shadow-m3-elevation-2 transition-shadow duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-error focus-visible:ring-offset-2">
+                        <span class="material-symbols-outlined text-[18px]">delete_forever</span>
+                        <span>Konto dauerhaft löschen...</span>
                     </button>
                     <div id="delete-confirmation-box" class="hidden space-y-4 mt-4">
-                        <label for="email_confirmation" class="block text-sm font-medium text-gray-700">
+                        <label for="email_confirmation" class="block text-m3-label-lg text-m3-on-error-container">
                             Bitte geben Sie Ihre E-Mail-Adresse (<strong>{{ current_user.data.email }}</strong>) ein, um die Löschung zu bestätigen:
                         </label>
                         <input type="email" id="email_confirmation" name="email_confirmation" required
-                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 pl-3"
+                               class="w-full bg-m3-surface-container-lowest text-m3-on-surface rounded-m3-xs border border-m3-error px-4 py-3 focus:outline-none focus:ring-2 focus:ring-m3-error"
                                placeholder="{{ current_user.data.email }}">
                         <button type="submit" id="delete-final-btn"
-                                class="w-full rounded-full bg-red-700 px-6 py-2.5 font-medium text-white shadow-md transition hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
-                            Ich habe es verstanden, mein Konto LÖSCHEN
+                                class="m3-state-layer w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-m3-full bg-m3-error text-m3-on-error text-m3-label-lg shadow-m3-elevation-2 hover:shadow-m3-elevation-3 transition-shadow duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-error focus-visible:ring-offset-2">
+                            <span class="material-symbols-outlined text-[18px]">delete</span>
+                            <span>Ich habe es verstanden, mein Konto LÖSCHEN</span>
                         </button>
                     </div>
                 </form>
@@ -110,51 +128,66 @@
         </div>
 
         <div class="lg:col-span-2 space-y-6">
-            <div class="bg-neutral-100 p-6 rounded-2xl shadow-sm">
-                <h3 class="text-xl font-semibold">Live-Log</h3>
-                <p class="text-sm text-gray-600 mt-1 mb-4">Der automatische Sync läuft stündlich.</p>
+            <!-- M3 Card: Live Log -->
+            <div class="bg-m3-surface-container p-6 rounded-m3-md">
+                <h3 class="text-m3-title-lg text-m3-on-surface flex items-center gap-2">
+                    <span class="material-symbols-outlined">terminal</span>
+                    Live-Log
+                </h3>
+                <p class="text-m3-body-sm text-m3-on-surface-variant mt-1 mb-4">Der automatische Sync läuft stündlich.</p>
+                
+                <!-- M3 Segmented Button Style Actions -->
                 <div class="relative mb-4">
-                    <div class="flex rounded-full shadow-md overflow-hidden">
+                    <div class="flex rounded-m3-full shadow-m3-elevation-1 overflow-hidden">
                         <form action="{{ url_for('sync_now') }}" method="POST" class="flex-1">
                             {{ csrf_input() }}
                             <button type="submit"
-                                    class="w-full bg-gray-600 px-6 py-2.5 text-center font-medium text-white transition hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
-                                Manuellen Sync starten
+                                    class="m3-state-layer w-full h-10 bg-m3-secondary-container text-m3-on-secondary-container text-m3-label-lg transition-colors duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-secondary focus-visible:ring-offset-2 flex items-center justify-center gap-2">
+                                <span class="material-symbols-outlined text-[18px]">sync</span>
+                                <span>Manuellen Sync starten</span>
                             </button>
                         </form>
                         <button type="button" id="quick-actions-toggle"
-                                class="bg-gray-700 px-4 text-white transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                                class="m3-state-layer bg-m3-secondary text-m3-on-secondary px-4 transition-colors duration-m3-short4 ease-m3-standard focus:outline-none focus-visible:ring-2 focus-visible:ring-m3-secondary focus-visible:ring-offset-2">
                             <span class="sr-only">Weitere Aktionen</span>
-                            &#9662;
+                            <span class="material-symbols-outlined text-[18px]">expand_more</span>
                         </button>
                     </div>
+                    
+                    <!-- M3 Menu -->
                     <div id="quick-actions-menu"
-                         class="hidden absolute right-0 z-10 mt-2 w-60 rounded-xl border border-gray-200 bg-white py-2 shadow-xl">
+                         class="hidden absolute right-0 z-10 mt-2 w-72 rounded-m3-xs bg-m3-surface-container-low py-2 shadow-m3-elevation-2">
                         <form action="{{ url_for('sync_now') }}" method="POST" data-quick-action="true">
                             {{ csrf_input() }}
                             <button type="submit"
-                                    class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
-                                Manuellen Sync jetzt ausführen
+                                    class="m3-state-layer flex w-full items-center gap-3 px-4 py-3 text-m3-body-md text-m3-on-surface hover:bg-m3-surface-container">
+                                <span class="material-symbols-outlined text-m3-on-surface-variant">sync</span>
+                                <span>Manuellen Sync jetzt ausführen</span>
                             </button>
                         </form>
                         <form action="{{ url_for('clear_sync_cache') }}" method="POST" data-quick-action="true" data-confirm="Der Sync-Cache wird geleert. Der nächste Sync synchronisiert alle Events neu. Fortfahren?">
                             {{ csrf_input() }}
                             <button type="submit"
-                                    class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
-                                Sync-Cache leeren (Full-Sync erzwingen)
+                                    class="m3-state-layer flex w-full items-center gap-3 px-4 py-3 text-m3-body-md text-m3-on-surface hover:bg-m3-surface-container">
+                                <span class="material-symbols-outlined text-m3-on-surface-variant">cached</span>
+                                <span>Sync-Cache leeren (Full-Sync erzwingen)</span>
                             </button>
                         </form>
+                        <div class="border-t border-m3-outline-variant my-1"></div>
                         <form action="{{ url_for('wipe_target_calendar') }}" method="POST" data-quick-action="true" data-confirm="Alle Einträge im Zielkalender werden gelöscht. Fortfahren?">
                             {{ csrf_input() }}
                             <button type="submit"
-                                    class="block w-full px-4 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50">
-                                Alle Einträge im Zielkalender löschen
+                                    class="m3-state-layer flex w-full items-center gap-3 px-4 py-3 text-m3-body-md text-m3-error hover:bg-m3-error-container">
+                                <span class="material-symbols-outlined">delete_sweep</span>
+                                <span>Alle Einträge im Zielkalender löschen</span>
                             </button>
                         </form>
                     </div>
                 </div>
+                
+                <!-- Log Output -->
                 <div id="log-box-content" 
-                     class="h-96 overflow-y-scroll rounded-lg bg-gray-800 p-4 font-mono text-xs text-gray-200 break-words">
+                     class="h-96 overflow-y-scroll rounded-m3-sm bg-m3-inverse-surface p-4 font-mono text-m3-body-sm text-m3-inverse-on-surface break-words">
                     {% for line in logs %}
                         {{ line }}<br>
                     {% endfor %}
