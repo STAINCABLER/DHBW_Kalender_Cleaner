@@ -493,6 +493,7 @@ def get_app():
 
     @app.route('/wipe-target', methods=['POST'])
     @login_required
+    @limiter.limit(RATE_LIMIT_SYNC)
     def wipe_target_calendar():
         is_fetch = request.headers.get('X-Requested-With') == 'fetch'
 
@@ -518,51 +519,26 @@ def get_app():
             flash("Authentifizierung fehlgeschlagen. Bitte erneut anmelden.", 'error')
             return respond('error', "Authentifizierung fehlgeschlagen.", http_status=401)
 
-        lock_file = os.path.join(DATA_DIR, f"{current_user.id}.sync.lock")
-        lock = FileLock(lock_file)
-        lock_acquired = False
-
         try:
-            log_system_event(f"User {current_user.id} startet Zielkalender-Löschung ({target_id}).")
-            lock.acquire(timeout=2)
-            lock_acquired = True
-        except Timeout:
-            log_system_event(f"Zielkalender-Löschung für User {current_user.id} abgebrochen (Lock aktiv).")
-            flash("Ein anderer Sync-Lauf ist noch aktiv. Bitte später erneut versuchen.", 'error')
-            return respond('error', "Sync läuft bereits.", http_status=409)
-
-        user_log_path = os.path.join(DATA_DIR, f"{current_user.id}.log")
-
-        try:
-            service = build('calendar', 'v3', credentials=creds)
-            syncer = CalendarSyncer(service, log_callback=sync_logger, user_log_file=user_log_path, user_id=current_user.id)
-            syncer.log_user("Zielkalender wird geleert...")
-            syncer.log(f"Wipe-Target gestartet für target={target_id}")
-            # Cache leeren, damit der nächste Sync vollständig ist
-            syncer.clear_cache()
-            # Leere Liste synchronisieren = alle Events löschen
-            source_id = config.get('source_id')
-            created_count, deleted_count = syncer.sync_to_target(target_id, [], None, None, source_id=source_id)
-            syncer.log_user(f"Zielkalender geleert ({deleted_count} Einträge entfernt).")
-            syncer.log(f"Wipe-Target abgeschlossen: deleted={deleted_count}")
-            log_system_event(f"Zielkalender-Löschung für User {current_user.id} beendet: {deleted_count} Einträge entfernt.")
-            flash(f"Zielkalender geleert ({deleted_count} Einträge entfernt).", 'success')
+            # Ruft das Sync-Skript mit --wipe Flag für den aktuellen User auf (asynchron)
+            user_id = current_user.id
+            command = f"python /app/sync_all_users.py --user {user_id} --wipe >> /app/data/system.log 2>&1"
+            subprocess.Popen(
+                ['sh', '-c', command],
+                close_fds=True
+            )
+            log_system_event(f"Zielkalender-Löschung durch User {user_id} gestartet.")
+            flash("Zielkalender-Löschung gestartet. Das Log-Fenster wird aktualisiert.", 'info')
             return respond('ok')
         except Exception as e:
-            app.logger.exception(f"Fehler beim Löschen des Zielkalenders für User {current_user.id}")
-            log_system_event(f"Fehler beim Löschen des Zielkalenders für User {current_user.id}: {e}")
-            message = f"Fehler beim Löschen des Zielkalenders: {e}"
+            message = f"Fehler beim Starten der Löschung: {e}"
+            log_system_event(f"Fehler beim Starten der Zielkalender-Löschung für User {current_user.id}: {e}")
             flash(message, 'error')
             return respond('error', message, http_status=500)
-        finally:
-            if lock_acquired and lock.is_locked:
-                try:
-                    lock.release()
-                except Exception:
-                    pass
 
     @app.route('/clear-cache', methods=['POST'])
     @login_required
+    @limiter.limit(RATE_LIMIT_SYNC)
     def clear_sync_cache():
         """Löscht den Sync-Cache für einen vollständigen Re-Sync."""
         is_fetch = request.headers.get('X-Requested-With') == 'fetch'

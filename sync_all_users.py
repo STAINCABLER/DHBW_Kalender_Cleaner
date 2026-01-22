@@ -56,7 +56,12 @@ def main():
     
     parser = argparse.ArgumentParser(description='Synchronisiert Kalender.')
     parser.add_argument('--user', type=str, help='Die ID eines einzelnen Benutzers, der synchronisiert werden soll.')
+    parser.add_argument('--wipe', action='store_true', help='Löscht alle Events im Zielkalender des Benutzers (erfordert --user).')
     args = parser.parse_args()
+    
+    if args.wipe and not args.user:
+        log("FEHLER: --wipe erfordert --user")
+        sys.exit(1)
     
     user_files = []
     if args.user:
@@ -115,9 +120,21 @@ def main():
             
             syncer = CalendarSyncer(service, log_callback=log, user_log_file=user_log_path, user_id=user_id)
             
-            syncer.run_sync(user_data)
+            if args.wipe:
+                # Wipe-Modus: Alle Events im Zielkalender löschen
+                target_id = user_data.get('target_id')
+                source_id = user_data.get('source_id')
+                syncer.log_user("Zielkalender wird geleert...")
+                log(f"Wipe-Target gestartet für target={target_id}")
+                syncer.clear_cache()
+                created_count, deleted_count = syncer.sync_to_target(target_id, [], None, None, source_id=source_id)
+                syncer.log_user(f"Zielkalender geleert ({deleted_count} Einträge entfernt).")
+                log(f"Wipe-Target abgeschlossen: deleted={deleted_count}")
+            else:
+                # Normaler Sync-Modus
+                syncer.run_sync(user_data)
             
-            log(f"--- Sync für Nutzer {user_id} abgeschlossen ---")
+            log(f"--- {'Wipe' if args.wipe else 'Sync'} für Nutzer {user_id} abgeschlossen ---")
             
         except Exception as e:
             log(f"FEHLER bei der Verarbeitung von Datei {user_file}: {e}")
