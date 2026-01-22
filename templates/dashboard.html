@@ -393,6 +393,76 @@
                 });
             }
         });
+
+        // --- Auto-Detect Timezone from ICS ---
+        const sourceIdInput = document.getElementById('source_id');
+        const timezoneSelect = document.getElementById('source_timezone');
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        let lastDetectedUrl = '{{ config.source_id }}';
+        let userManuallyChangedTimezone = false;
+        
+        // Merke wenn User manuell die Zeitzone ändert
+        if (timezoneSelect) {
+            timezoneSelect.addEventListener('change', function() {
+                userManuallyChangedTimezone = true;
+            });
+        }
+        
+        if (sourceIdInput && timezoneSelect) {
+            // Debounce-Funktion um nicht bei jedem Tastendruck zu fetchen
+            let debounceTimer;
+            
+            sourceIdInput.addEventListener('input', function() {
+                const url = sourceIdInput.value.trim();
+                
+                // Nur für URLs und wenn geändert
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    return;
+                }
+                
+                if (url === lastDetectedUrl) {
+                    return;
+                }
+                
+                // Reset manual flag wenn URL sich ändert
+                userManuallyChangedTimezone = false;
+                
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(async function() {
+                    try {
+                        const formData = new FormData();
+                        formData.append('url', url);
+                        formData.append('csrf_token', csrfToken);
+                        
+                        const response = await fetch("{{ url_for('detect_timezone') }}", {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (!response.ok) return;
+                        
+                        const data = await response.json();
+                        
+                        if (data.timezone && !userManuallyChangedTimezone) {
+                            // Setze erkannte Zeitzone als Auswahl
+                            const option = timezoneSelect.querySelector(`option[value="${data.timezone}"]`);
+                            if (option) {
+                                timezoneSelect.value = data.timezone;
+                                lastDetectedUrl = url;
+                                
+                                // Kurzes visuelles Feedback
+                                timezoneSelect.style.borderColor = '#1e8e3e';
+                                setTimeout(() => {
+                                    timezoneSelect.style.borderColor = '';
+                                }, 2000);
+                            }
+                        }
+                    } catch (e) {
+                        // Fehler still ignorieren
+                    }
+                }, 800); // 800ms Debounce
+            });
+        }
     })();
 </script>
 {% endblock %}

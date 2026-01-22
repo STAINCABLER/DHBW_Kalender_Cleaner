@@ -300,7 +300,7 @@ def get_app():
         initial_logs = get_log_lines_for_file(user_log_file, n=50)
 
         # Berechne Offsets für alle Zeitzonen für bessere UX
-        timezones_display = []
+        timezones_with_offset = []
         # Verwende naive UTC-Zeit für pytz.localize()
         now_naive = datetime.now(tz=pytz.utc).replace(tzinfo=None)
         for tz_name in pytz.common_timezones:
@@ -320,16 +320,21 @@ def get_app():
                 # Verwende Non-Breaking Spaces für Abstand
                 display_str = f"{tz_name}   {offset_str}"
                 
-                timezones_display.append({
+                timezones_with_offset.append({
                     'value': tz_name,
-                    'label': display_str
+                    'label': display_str,
+                    'offset_seconds': total_seconds  # Für Sortierung
                 })
             except Exception as e:
                 # Fallback bei Fehlern (z.B. bei mehrdeutigen Zeiten)
-                timezones_display.append({
+                timezones_with_offset.append({
                     'value': tz_name,
-                    'label': tz_name
+                    'label': tz_name,
+                    'offset_seconds': 0
                 })
+        
+        # Sortiere nach Offset (aufsteigend) und dann alphabetisch nach Name
+        timezones_display = sorted(timezones_with_offset, key=lambda x: (x['offset_seconds'], x['value']))
         
         return render_template('dashboard.html', 
                                config=current_user.get_config(),
@@ -390,6 +395,62 @@ def get_app():
             return f"Quellkalender: HTTP-Fehler {e.response.status_code}. Bitte URL prüfen."
         except Exception as e:
             return f"Quellkalender: Validierung fehlgeschlagen ({e})."
+
+    def _detect_ics_timezone(url):
+        """Versucht die Zeitzone aus einer ICS-URL zu erkennen. Gibt Zeitzone oder None zurück."""
+        import requests as req
+        try:
+            headers = {
+                'User-Agent': 'DHBW-Calendar-Cleaner/1.0 (https://github.com/STAINCABLER/DHBW_Calendar_Cleaner)',
+                'Accept': 'text/calendar, */*'
+            }
+            response = req.get(url, timeout=10, headers=headers, allow_redirects=True)
+            response.raise_for_status()
+            
+            # Lese die ersten 8KB um Zeitzone zu finden
+            content = response.text[:8192]
+            
+            # Suche nach X-WR-TIMEZONE (Google Calendar, Apple)
+            import re
+            x_wr_match = re.search(r'X-WR-TIMEZONE[;:]([^\r\n]+)', content)
+            if x_wr_match:
+                tz = x_wr_match.group(1).strip()
+                # Prüfe ob gültige Zeitzone
+                if tz in pytz.all_timezones:
+                    return tz
+            
+            # Suche nach VTIMEZONE TZID
+            vtimezone_match = re.search(r'BEGIN:VTIMEZONE[\s\S]*?TZID[;:]([^\r\n]+)', content)
+            if vtimezone_match:
+                tz = vtimezone_match.group(1).strip()
+                # Entferne eventuelle Anführungszeichen
+                tz = tz.strip('"\'')
+                if tz in pytz.all_timezones:
+                    return tz
+            
+            return None
+        except Exception:
+            return None
+
+    @app.route('/detect-timezone', methods=['POST'])
+    @login_required
+    def detect_timezone():
+        """API-Endpunkt zur Erkennung der Zeitzone aus einer ICS-URL."""
+        url = request.form.get('url', '').strip()
+        
+        if not url:
+            return jsonify({'timezone': None, 'error': 'Keine URL angegeben'}), 400
+        
+        # Nur für ICS-URLs
+        if not (url.startswith('http://') or url.startswith('https://')):
+            return jsonify({'timezone': None, 'message': 'Keine ICS-URL'})
+        
+        detected_tz = _detect_ics_timezone(url)
+        
+        if detected_tz:
+            return jsonify({'timezone': detected_tz, 'message': f'Zeitzone {detected_tz} erkannt'})
+        else:
+            return jsonify({'timezone': None, 'message': 'Keine Zeitzone in ICS gefunden'})
 
     @app.route('/save', methods=['POST'])
     @login_required

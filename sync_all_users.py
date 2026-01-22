@@ -126,10 +126,15 @@ def main():
                 source_id = user_data.get('source_id')
                 syncer.log_user("Zielkalender wird geleert...")
                 log(f"Wipe-Target gestartet für target={target_id}")
-                syncer.clear_cache()
-                created_count, deleted_count = syncer.sync_to_target(target_id, [], None, None, source_id=source_id)
-                syncer.log_user(f"Zielkalender geleert ({deleted_count} Einträge entfernt).")
-                log(f"Wipe-Target abgeschlossen: deleted={deleted_count}")
+                try:
+                    syncer.clear_cache()
+                    created_count, deleted_count = syncer.sync_to_target(target_id, [], None, None, source_id=source_id)
+                    syncer.log_user(f"Zielkalender geleert ({deleted_count} Einträge entfernt).")
+                    log(f"Wipe-Target abgeschlossen: deleted={deleted_count}")
+                except Exception as wipe_error:
+                    syncer.log_user(f"Fehler beim Leeren: {wipe_error}")
+                    log(f"Wipe-Target FEHLER: {wipe_error}")
+                    raise
             else:
                 # Normaler Sync-Modus
                 syncer.run_sync(user_data)
