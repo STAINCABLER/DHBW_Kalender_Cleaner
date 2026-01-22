@@ -24,7 +24,7 @@ from config import (
     DATA_DIR, CONTENT_DIR, GOOGLE_SCOPES,
     APP_BASE_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SECRET_KEY,
     encrypt,
-    RATE_LIMIT_DEFAULT, RATE_LIMIT_LOGIN, RATE_LIMIT_SYNC
+    RATE_LIMIT_DEFAULT, RATE_LIMIT_LOGIN, RATE_LIMIT_SYNC, RATE_LIMIT_LOGS
 )
 from models import User
 from sync_logic import CalendarSyncer
@@ -282,6 +282,7 @@ def get_app():
             return [f"Fehler beim Lesen der Log-Datei: {e}"]
 
     @app.route('/logs')
+    @limiter.limit(RATE_LIMIT_LOGS)
     @login_required
     def get_logs():
         user_log_file = os.path.join(DATA_DIR, f"{current_user.id}.log")

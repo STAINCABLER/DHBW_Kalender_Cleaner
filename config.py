@@ -85,6 +85,7 @@ APP_WEBSITE = "https://thulium-labs.de"
 RATE_LIMIT_DEFAULT = ["200 per day", "50 per hour"]
 RATE_LIMIT_LOGIN = "10 per minute"
 RATE_LIMIT_SYNC = "5 per minute"
+RATE_LIMIT_LOGS = "60 per minute"  # Höheres Limit für Log-Polling
 
 
 # --- Initialisierung ---
