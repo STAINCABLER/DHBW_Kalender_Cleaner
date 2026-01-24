@@ -273,6 +273,7 @@ class CalendarSyncer:
             events = []
             seen_uids = set()  # Deduplizierung nach UID
             duplicate_count = 0
+            skipped_count = 0
             
             for event in calendar.events:
                 if not event.end or not event.begin:
@@ -286,27 +287,39 @@ class CalendarSyncer:
                         continue
                     seen_uids.add(event_uid)
 
-                # Zeitzonen-Korrektur: Erzwinge immer die User-Zeitzone (Wall-Time Rewrite)
-                # Wir ignorieren die ICS-Zeitzone und interpretieren die "nackte" Zeit (Wall Time)
-                # als Local Time in der konfigurierten Zeitzone.
-                start_arrow = event.begin
-                end_arrow = event.end
-                
-                start_arrow = arrow.get(start_arrow.naive, tzinfo=source_timezone)
-                end_arrow = arrow.get(end_arrow.naive, tzinfo=source_timezone)
-                
-                event.begin = start_arrow
-                event.end = end_arrow
+                try:
+                    # Zeitzonen-Korrektur: Erzwinge immer die User-Zeitzone (Wall-Time Rewrite)
+                    # Wir ignorieren die ICS-Zeitzone und interpretieren die "nackte" Zeit (Wall Time)
+                    # als Local Time in der konfigurierten Zeitzone.
+                    start_arrow = event.begin
+                    end_arrow = event.end
+                    
+                    # Prüfe ob es ein ganztägiges Event ist (date statt datetime)
+                    # Bei ganztägigen Events hat Arrow kein .naive Attribut
+                    if hasattr(start_arrow, 'naive'):
+                        start_arrow = arrow.get(start_arrow.naive, tzinfo=source_timezone)
+                    if hasattr(end_arrow, 'naive'):
+                        end_arrow = arrow.get(end_arrow.naive, tzinfo=source_timezone)
+                    
+                    event.begin = start_arrow
+                    event.end = end_arrow
 
-                # Zeitfilter
-                if time_min_dt is None or time_max_dt is None:
-                    events.append(self.standardize_event(event, 'ics'))
-                else:
-                    if event.end > time_min_dt and event.begin < time_max_dt:
+                    # Zeitfilter
+                    if time_min_dt is None or time_max_dt is None:
                         events.append(self.standardize_event(event, 'ics'))
+                    else:
+                        if event.end > time_min_dt and event.begin < time_max_dt:
+                            events.append(self.standardize_event(event, 'ics'))
+                except Exception as e:
+                    skipped_count += 1
+                    event_name = getattr(event, 'name', 'Unbekannt')
+                    self.log(f"ICS: Event '{event_name}' übersprungen wegen Fehler: {type(e).__name__}: {e}")
             
             if duplicate_count > 0:
                 self.log(f"ICS: {duplicate_count} Duplikate übersprungen")
+            if skipped_count > 0:
+                self.log_user(f"{skipped_count} Events wegen Fehlern übersprungen.")
+                self.log(f"ICS: {skipped_count} Events wegen Fehlern übersprungen")
             return events
         except requests.exceptions.RequestException as e:
             # Netzwerk-/HTTP-Fehler - Details für User anzeigen
@@ -317,9 +330,12 @@ class CalendarSyncer:
             self.log(f"ICS Request Error: {e}")
             return []
         except Exception as e:
-            # Parsing-/andere Fehler - mit Typ für Diagnose
-            self.log_user(f"Fehler beim Verarbeiten des Kalenders: {type(e).__name__}")
-            self.log(f"ICS Parse Error: {type(e).__name__}: {e}")
+            # Parsing-/andere Fehler - vollständige Details auch im User-Log
+            import traceback
+            error_details = f"{type(e).__name__}: {e}"
+            self.log_user(f"Fehler beim Verarbeiten des Kalenders: {error_details}")
+            self.log(f"ICS Parse Error: {error_details}")
+            self.log(f"ICS Traceback: {traceback.format_exc()}")
             return []
 
     def filter_events(self, events, regex_patterns_raw):
