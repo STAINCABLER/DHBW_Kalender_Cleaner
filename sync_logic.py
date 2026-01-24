@@ -5,6 +5,7 @@ import hashlib
 import requests
 import arrow
 import time
+import socket
 from datetime import datetime, timedelta, timezone
 from googleapiclient.errors import HttpError
 from ics import Calendar
@@ -608,9 +609,12 @@ class CalendarSyncer:
         return created_count, deleted_count
     
     def _batch_delete_events(self, calendar_id, event_ids, max_attempts=3):
-        """Löscht Events in Batches von 50 (Google API Maximum)."""
+        """Löscht Events in Batches.
+        
+        Kleinere Batch-Größe (10 statt 50) um Timeouts bei langsamen Verbindungen zu vermeiden.
+        """
         deleted_count = 0
-        batch_size = 50
+        batch_size = 10  # Reduziert von 50, da große Batches zu Timeouts führen können
         
         for i in range(0, len(event_ids), batch_size):
             batch_ids = event_ids[i:i + batch_size]
@@ -630,6 +634,7 @@ class CalendarSyncer:
             
             for attempt in range(max_attempts):
                 try:
+                    batch_deleted = 0  # Reset für Retry
                     batch = self.service.new_batch_http_request(callback=delete_callback)
                     for event_id in batch_ids:
                         batch.add(self.service.events().delete(
@@ -641,25 +646,35 @@ class CalendarSyncer:
                     break
                 except HttpError as e:
                     if attempt < max_attempts - 1:
-                        self.log(f"Batch-Delete Retry {attempt + 2}/{max_attempts}")
+                        self.log(f"Batch-Delete Retry {attempt + 2}/{max_attempts} (HttpError)")
                         time.sleep(2 ** attempt)
                     else:
                         self.log(f"Batch-Delete Failed: {e}")
+                except (socket.timeout, OSError) as e:
+                    # Socket/Timeout-Fehler - Retry mit längerem Delay
+                    if attempt < max_attempts - 1:
+                        self.log(f"Batch-Delete Timeout, Retry {attempt + 2}/{max_attempts}")
+                        time.sleep(5 * (attempt + 1))  # Längerer Delay bei Timeout
+                    else:
+                        self.log(f"Batch-Delete Timeout Failed: {e}")
+                        raise  # Re-raise um den Sync als fehlgeschlagen zu markieren
             
             # Kurze Pause zwischen Batches um Rate-Limits zu vermeiden
             if i + batch_size < len(event_ids):
-                time.sleep(0.5)
+                time.sleep(1)  # Erhöht von 0.5 auf 1 Sekunde
         
         return deleted_count
     
     def _batch_create_events(self, calendar_id, events, max_attempts=3):
-        """Erstellt Events in Batches von 50 (Google API Maximum)."""
+        """Erstellt Events in Batches.
+        
+        Kleinere Batch-Größe (10 statt 50) um Timeouts bei langsamen Verbindungen zu vermeiden.
+        """
         created_ids = []
-        batch_size = 50
+        batch_size = 10  # Reduziert von 50
         
         for i in range(0, len(events), batch_size):
             batch_events = events[i:i + batch_size]
-            batch_ids = [None] * len(batch_events)
             
             for attempt in range(max_attempts):
                 # Reset batch_ids bei jedem Versuch um stale Daten zu vermeiden
@@ -687,15 +702,23 @@ class CalendarSyncer:
                     break
                 except HttpError as e:
                     if attempt < max_attempts - 1:
-                        self.log(f"Batch-Insert Retry {attempt + 2}/{max_attempts}")
+                        self.log(f"Batch-Insert Retry {attempt + 2}/{max_attempts} (HttpError)")
                         time.sleep(2 ** attempt)
                     else:
                         self.log(f"Batch-Insert Failed: {e}")
                         created_ids.extend([None] * len(batch_events))
+                except (socket.timeout, OSError) as e:
+                    # Socket/Timeout-Fehler - Retry mit längerem Delay
+                    if attempt < max_attempts - 1:
+                        self.log(f"Batch-Insert Timeout, Retry {attempt + 2}/{max_attempts}")
+                        time.sleep(5 * (attempt + 1))  # Längerer Delay bei Timeout
+                    else:
+                        self.log(f"Batch-Insert Timeout Failed: {e}")
+                        raise  # Re-raise um den Sync als fehlgeschlagen zu markieren
             
             # Kurze Pause zwischen Batches
             if i + batch_size < len(events):
-                time.sleep(0.5)
+                time.sleep(1)  # Erhöht von 0.5 auf 1 Sekunde
         
         return created_ids
     
