@@ -219,7 +219,8 @@ class CalendarSyncer:
             self.log(f"Google API: {len(all_events)} Events abgerufen (über {len(all_events)//250 + 1} Seiten)")
             return all_events
         except HttpError as error:
-            self.log_user("Fehler beim Abrufen der Google-Ereignisse.")
+            error_code = error.resp.status if hasattr(error, 'resp') else 'unbekannt'
+            self.log_user(f"Fehler beim Abrufen der Google-Ereignisse: HTTP {error_code}")
             self.log(f"Google API Error: {error}")
             return []
 
@@ -307,9 +308,18 @@ class CalendarSyncer:
             if duplicate_count > 0:
                 self.log(f"ICS: {duplicate_count} Duplikate übersprungen")
             return events
+        except requests.exceptions.RequestException as e:
+            # Netzwerk-/HTTP-Fehler - Details für User anzeigen
+            error_detail = str(e)
+            if hasattr(e, 'response') and e.response is not None:
+                error_detail = f"HTTP {e.response.status_code}"
+            self.log_user(f"Fehler beim Abrufen des Kalenders: {error_detail}")
+            self.log(f"ICS Request Error: {e}")
+            return []
         except Exception as e:
-            self.log_user("Fehler beim Abrufen des Kalenders.")
-            self.log(f"ICS Parse Error: {e}")
+            # Parsing-/andere Fehler - mit Typ für Diagnose
+            self.log_user(f"Fehler beim Verarbeiten des Kalenders: {type(e).__name__}")
+            self.log(f"ICS Parse Error: {type(e).__name__}: {e}")
             return []
 
     def filter_events(self, events, regex_patterns_raw):
