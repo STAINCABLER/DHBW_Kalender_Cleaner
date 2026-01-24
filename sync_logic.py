@@ -653,53 +653,65 @@ class CalendarSyncer:
         user_email = config.get('email', 'Unbekannt')
         self.log_user("Synchronisation gestartet...")
         self.log(f"Sync-Start für user={user_email}, source={config.get('source_id')}")
-        SOURCE_CALENDAR_ID = config.get('source_id')
-        TARGET_CALENDAR_ID = config.get('target_id')
-        REGEX_PATTERNS = config.get('regex_patterns', [])
-        # Zeitzone des Benutzers holen, Standard ist Berlin
-        SOURCE_TIMEZONE = config.get('source_timezone', 'Europe/Berlin') 
-
-        if not SOURCE_CALENDAR_ID or not TARGET_CALENDAR_ID:
-            self.log_user("Fehler: Quell- oder Ziel-ID nicht konfiguriert.")
-            self.log("Sync abgebrochen: source_id oder target_id fehlt")
-            return
-
-        # Prüfe ob sich die Quell-ID geändert hat (ICS-Cache invalidieren)
-        ics_cache = self._load_cache('ics')
-        cached_source_url = ics_cache.get('source_url')
-        if cached_source_url and cached_source_url != SOURCE_CALENDAR_ID:
-            self.log(f"Quellkalender geändert - ICS-Cache wird gelöscht")
-            cache_path = self._get_cache_path('ics')
-            if cache_path and os.path.exists(cache_path):
-                try:
-                    os.remove(cache_path)
-                except Exception:
-                    pass
-
-        # Zeitfenster: 6 Monate in Vergangenheit und Zukunft synchronisieren
-        now = datetime.now(timezone.utc)
-        time_min_dt = now - timedelta(days=180)  # 6 Monate in die Vergangenheit
-        time_max_dt = now + timedelta(days=180)  # 6 Monate in die Zukunft
         
-        time_min_iso = time_min_dt.isoformat()
-        time_max_iso = time_max_dt.isoformat()
-        self.log(f"Zeitfenster: {time_min_dt.strftime('%Y-%m-%d')} bis {time_max_dt.strftime('%Y-%m-%d')}")
+        try:
+            SOURCE_CALENDAR_ID = config.get('source_id')
+            TARGET_CALENDAR_ID = config.get('target_id')
+            REGEX_PATTERNS = config.get('regex_patterns', [])
+            # Zeitzone des Benutzers holen, Standard ist Berlin
+            SOURCE_TIMEZONE = config.get('source_timezone', 'Europe/Berlin') 
 
-        source_events = []
-        is_ics = SOURCE_CALENDAR_ID.startswith('http://') or SOURCE_CALENDAR_ID.startswith('https://')
+            if not SOURCE_CALENDAR_ID or not TARGET_CALENDAR_ID:
+                self.log_user("Fehler: Quell- oder Ziel-ID nicht konfiguriert.")
+                self.log("Sync abgebrochen: source_id oder target_id fehlt")
+                return
 
-        if is_ics:
-            # Für ICS brauchen wir datetime-Objekte als Arrow-kompatible Zeitfilter
-            source_events = self.fetch_ics_events(SOURCE_CALENDAR_ID, time_min_dt, time_max_dt, SOURCE_TIMEZONE)
-        else:
-            source_events = self.fetch_google_events(SOURCE_CALENDAR_ID, time_min_iso, time_max_iso)
+            # Prüfe ob sich die Quell-ID geändert hat (ICS-Cache invalidieren)
+            ics_cache = self._load_cache('ics')
+            cached_source_url = ics_cache.get('source_url')
+            if cached_source_url and cached_source_url != SOURCE_CALENDAR_ID:
+                self.log(f"Quellkalender geändert - ICS-Cache wird gelöscht")
+                cache_path = self._get_cache_path('ics')
+                if cache_path and os.path.exists(cache_path):
+                    try:
+                        os.remove(cache_path)
+                    except Exception:
+                        pass
 
-        self.log(f"Quelle: {len(source_events)} Events")
-        eligible_events, excluded = self.filter_events(source_events, REGEX_PATTERNS)
-        created, deleted = self.sync_to_target(
-            TARGET_CALENDAR_ID, eligible_events, time_min_iso, time_max_iso,
-            source_id=SOURCE_CALENDAR_ID
-        )
+            # Zeitfenster: 6 Monate in Vergangenheit und Zukunft synchronisieren
+            now = datetime.now(timezone.utc)
+            time_min_dt = now - timedelta(days=180)  # 6 Monate in die Vergangenheit
+            time_max_dt = now + timedelta(days=180)  # 6 Monate in die Zukunft
+            
+            time_min_iso = time_min_dt.isoformat()
+            time_max_iso = time_max_dt.isoformat()
+            self.log(f"Zeitfenster: {time_min_dt.strftime('%Y-%m-%d')} bis {time_max_dt.strftime('%Y-%m-%d')}")
 
-        self.log_user(f"Sync abgeschlossen: {created} erstellt, {deleted} gelöscht, {excluded} gefiltert.")
-        self.log(f"Sync-Ende: created={created}, deleted={deleted}, excluded={excluded}")
+            source_events = []
+            is_ics = SOURCE_CALENDAR_ID.startswith('http://') or SOURCE_CALENDAR_ID.startswith('https://')
+
+            if is_ics:
+                # Für ICS brauchen wir datetime-Objekte als Arrow-kompatible Zeitfilter
+                source_events = self.fetch_ics_events(SOURCE_CALENDAR_ID, time_min_dt, time_max_dt, SOURCE_TIMEZONE)
+            else:
+                source_events = self.fetch_google_events(SOURCE_CALENDAR_ID, time_min_iso, time_max_iso)
+
+            self.log(f"Quelle: {len(source_events)} Events")
+            eligible_events, excluded = self.filter_events(source_events, REGEX_PATTERNS)
+            created, deleted = self.sync_to_target(
+                TARGET_CALENDAR_ID, eligible_events, time_min_iso, time_max_iso,
+                source_id=SOURCE_CALENDAR_ID
+            )
+
+            self.log_user(f"Sync abgeschlossen: {created} erstellt, {deleted} gelöscht, {excluded} gefiltert.")
+            self.log(f"Sync-Ende: created={created}, deleted={deleted}, excluded={excluded}")
+            
+        except HttpError as e:
+            error_msg = f"Google API Fehler: {e.resp.status if hasattr(e, 'resp') else 'unbekannt'}"
+            self.log_user(f"Sync fehlgeschlagen: {error_msg}")
+            self.log(f"Sync-Fehler (HttpError): {e}")
+            raise
+        except Exception as e:
+            self.log_user(f"Sync fehlgeschlagen: {type(e).__name__}")
+            self.log(f"Sync-Fehler (Exception): {type(e).__name__}: {e}")
+            raise
