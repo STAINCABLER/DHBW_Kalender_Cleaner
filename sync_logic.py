@@ -160,6 +160,7 @@ class CalendarSyncer:
                 'recurringEventId': event_data.get('recurringEventId'),
             }
         elif source_type == 'ics':
+            # DEPRECATED: Nutze _standardize_ics_event für ICS-Events mit vorkonvertierten Zeiten
             # Diese Funktion erhält jetzt zeitzonenbewusste 'arrow'-Objekte
             start_arrow = event_data.begin
             end_arrow = event_data.end
@@ -186,6 +187,35 @@ class CalendarSyncer:
                 'end': end,
                 'uid': event_uid,
             }
+
+    def _standardize_ics_event(self, event_data, start_arrow, end_arrow):
+        """Standardisiert ein ICS-Event mit bereits konvertierten Arrow-Zeiten.
+        
+        Diese Methode vermeidet das Setzen von event.begin/event.end, was bei
+        ics.py eine Validierung triggert, die bei falscher Zeitzone fehlschlägt.
+        """
+        start, end = {}, {}
+        if event_data.all_day:
+            start['date'] = start_arrow.format('YYYY-MM-DD')
+            end['date'] = end_arrow.shift(days=1).format('YYYY-MM-DD')
+        else:
+            # isoformat() enthält den korrekten Offset (z.B. +01:00)
+            start['dateTime'] = start_arrow.isoformat()
+            end['dateTime'] = end_arrow.isoformat()
+        
+        # UID für stabile Identifikation (wichtig bei wiederkehrenden Events)
+        event_uid = None
+        if hasattr(event_data, 'uid') and event_data.uid:
+            event_uid = str(event_data.uid)
+        
+        return {
+            'summary': event_data.name or 'Kein Titel',
+            'description': event_data.description or '',
+            'location': event_data.location or '',
+            'start': start,
+            'end': end,
+            'uid': event_uid,
+        }
 
     def fetch_google_events(self, calendar_id, time_min=None, time_max=None):
         self.log(f"Google Calendar API: Abruf für {calendar_id}")
@@ -291,6 +321,8 @@ class CalendarSyncer:
                     # Zeitzonen-Korrektur: Erzwinge immer die User-Zeitzone (Wall-Time Rewrite)
                     # Wir ignorieren die ICS-Zeitzone und interpretieren die "nackte" Zeit (Wall Time)
                     # als Local Time in der konfigurierten Zeitzone.
+                    # WICHTIG: Wir setzen NICHT event.begin/event.end, da ics.py sonst
+                    # eine Validierung durchführt, die bei falscher Zeitzone fehlschlägt.
                     start_arrow = event.begin
                     end_arrow = event.end
                     
@@ -301,15 +333,19 @@ class CalendarSyncer:
                     if hasattr(end_arrow, 'naive'):
                         end_arrow = arrow.get(end_arrow.naive, tzinfo=source_timezone)
                     
-                    event.begin = start_arrow
-                    event.end = end_arrow
+                    # Validierung: Start muss vor Ende sein
+                    if start_arrow >= end_arrow:
+                        skipped_count += 1
+                        event_name = getattr(event, 'name', 'Unbekannt')
+                        self.log(f"ICS: Event '{event_name}' übersprungen: Startzeit >= Endzeit nach TZ-Konvertierung")
+                        continue
 
-                    # Zeitfilter
+                    # Zeitfilter (nutze die konvertierten Zeiten)
                     if time_min_dt is None or time_max_dt is None:
-                        events.append(self.standardize_event(event, 'ics'))
+                        events.append(self._standardize_ics_event(event, start_arrow, end_arrow))
                     else:
-                        if event.end > time_min_dt and event.begin < time_max_dt:
-                            events.append(self.standardize_event(event, 'ics'))
+                        if end_arrow > time_min_dt and start_arrow < time_max_dt:
+                            events.append(self._standardize_ics_event(event, start_arrow, end_arrow))
                 except Exception as e:
                     skipped_count += 1
                     event_name = getattr(event, 'name', 'Unbekannt')
